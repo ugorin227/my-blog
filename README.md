@@ -1,7 +1,7 @@
 # my-blog
 
 microCMS をヘッドレス CMS として使う Next.js ブログサイトです。  
-本番公開は **Firebase App Hosting** を利用します。
+本番公開は **Vercel（無料 Hobby プラン）** を利用します。
 
 ## 技術スタック
 
@@ -9,7 +9,7 @@ microCMS をヘッドレス CMS として使う Next.js ブログサイトです
 - TypeScript
 - Tailwind CSS
 - [microCMS](https://microcms.io/)
-- [Firebase App Hosting](https://firebase.google.com/docs/app-hosting)
+- [Vercel](https://vercel.com/)
 
 ## ローカル開発
 
@@ -39,6 +39,7 @@ copy env.local.example .env.local
 | -------------------------- | ------------------------------------------------- |
 | `MICROCMS_SERVICE_DOMAIN`  | サービス URL の `https://xxxx.microcms.io` の `xxxx` 部分 |
 | `MICROCMS_API_KEY`         | microCMS 管理画面の API キー（GET 権限）              |
+| `MICROCMS_WEBHOOK_SECRET`  | microCMS Webhook 用シークレット（後述）               |
 
 ### 3. 開発サーバーを起動
 
@@ -56,85 +57,96 @@ http://localhost:3000 を開いてください。
 | `/`            | 記事一覧   |
 | `/blog/[id]`   | 記事詳細   |
 
-## Firebase で WEB 公開
+## Vercel で WEB 公開（無料）
 
-Next.js の Server Components / ISR をそのまま使える **Firebase App Hosting** で公開します。
+Next.js の Server Components / ISR をそのまま使える **Vercel Hobby プラン（無料）** で公開します。
 
-### 前提条件
+リポジトリ: https://github.com/ugorin227/my-blog
 
-- [Firebase プロジェクト](https://console.firebase.google.com/)を作成
-- **Blaze（従量課金）プラン** にアップグレード（App Hosting に必須）
-- [Node.js 20+](https://nodejs.org/) と [Git](https://git-scm.com/) をインストール
+### 手順 A: GitHub 連携（おすすめ）
 
-### 手順 A: Firebase CLI からローカルデプロイ（おすすめ・初回向け）
+1. [Vercel](https://vercel.com/) に GitHub アカウントでログイン
+2. **Add New… > Project** を選択
+3. `ugorin227/my-blog` を **Import**
+4. フレームワークは **Next.js** が自動検出されます（変更不要）
+5. **Environment Variables** に以下を追加
 
-#### 1. Firebase CLI をセットアップ
+| Name | Value |
+| ---- | ----- |
+| `MICROCMS_SERVICE_DOMAIN` | `84pn2ga8lc` |
+| `MICROCMS_API_KEY` | microCMS の API キー |
+| `MICROCMS_WEBHOOK_SECRET` | Webhook 用シークレット（任意の長い文字列） |
+
+6. **Deploy** をクリック
+
+完了後、`https://my-blog-xxxx.vercel.app` のような URL で公開されます。  
+`main` ブランチへの push で自動的に再デプロイされます。
+
+### 手順 B: Vercel CLI からデプロイ
 
 ```powershell
 cd C:\Users\unhap\Projects\my-blog
 npm install
-npm run firebase:login
+npm run vercel:login
+npm run vercel:deploy
 ```
 
-#### 2. App Hosting を初期化
-
-```powershell
-npm run firebase:init
-```
-
-対話形式で以下を設定します。
-
-- 使用する Firebase プロジェクト
-- バックエンド ID: `my-blog`（`firebase.json` と合わせる）
-- リージョン: `asia-northeast1`（東京）などユーザーに近いリージョン
-- ルートディレクトリ: `.`（プロジェクト直下）
-- Node.js ランタイム: 推奨バージョン
-
-初期化後、`.firebaserc` が作成されます（`.firebaserc.example` を参考にしても可）。
-
-#### 3. API キーを Secret Manager に登録
-
-API キーはリポジトリに含めず、Secret Manager で管理します。
-
-```powershell
-npm run firebase:secrets
-```
-
-プロンプトで microCMS の API キーを入力します。  
-`apphosting.yaml` の `microcmsApiKey` シークレットとして参照されます。
-
-#### 4. デプロイ
-
-```powershell
-npm run deploy:firebase
-```
-
-初回ビルドには数分かかることがあります。完了後、Firebase コンソールの **Hosting & Serverless > App Hosting** に表示される URL（例: `my-blog--xxxx.asia-northeast1.hosted.app`）で公開されます。
-
-### 手順 B: GitHub 連携で自動デプロイ（運用向け）
-
-1. プロジェクトを GitHub リポジトリに push
-2. [Firebase コンソール](https://console.firebase.google.com/) → **Hosting & Serverless > App Hosting** → **バックエンドを作成**
-3. GitHub を接続し、リポジトリ・ブランチ（`main`）・ルートディレクトリ（`.`）を設定
-4. **環境変数** を設定
-   - `MICROCMS_SERVICE_DOMAIN` = `84pn2ga8lc`
-   - `MICROCMS_API_KEY` = microCMS の API キー（または Secret Manager 連携）
-5. `main` ブランチへの push で自動デプロイ
-
-### 設定ファイル
-
-| ファイル | 役割 |
-| -------- | ---- |
-| `apphosting.yaml` | ランタイム設定・環境変数・シークレット参照 |
-| `firebase.json` | App Hosting バックエンドとデプロイ対象の定義 |
-| `.firebaserc` | Firebase プロジェクト ID（`firebase init` で生成） |
+初回はプロジェクト名やスコープの確認があります。環境変数は [Vercel ダッシュボード](https://vercel.com/dashboard) の **Settings > Environment Variables** で設定してください。
 
 ### カスタムドメイン
 
-Firebase コンソールの App Hosting バックエンド設定から、独自ドメインを追加できます。
+Vercel ダッシュボードの **Settings > Domains** から独自ドメインを追加できます（無料枠で利用可）。
+
+## microCMS 公開時の自動更新
+
+記事を公開・更新・削除したときにサイトへ即時反映するため、**microCMS Webhook → Next.js On-demand Revalidation** を使います。  
+Vercel のフル Redeploy より高速で、ビルド時間も消費しません。
+
+### 1. Webhook 用シークレットを決める
+
+任意の長いランダム文字列を生成します（例: `openssl rand -hex 32`）。
+
+### 2. 環境変数を追加
+
+| 場所 | 変数名 | 値 |
+| ---- | ------ | -- |
+| `.env.local` | `MICROCMS_WEBHOOK_SECRET` | 上で決めたシークレット |
+| Vercel ダッシュボード | `MICROCMS_WEBHOOK_SECRET` | 同じ値 |
+
+Vercel に追加後、**Redeploy** してください（`/api/revalidate` を本番に反映するため）。
+
+### 3. microCMS で Webhook を設定
+
+1. microCMS 管理画面 → **サービス設定** → **Webhook**
+2. **追加** をクリック
+3. 以下を設定
+
+| 項目 | 値 |
+| ---- | -- |
+| 通知 URL | `https://my-blog-two-amber.vercel.app/api/revalidate` |
+| シークレット | 手順 1 と同じ値 |
+| トリガー | API「blogs」の **公開・更新・削除** |
+
+4. 保存
+
+### 動作
+
+1. microCMS で記事を公開・更新・削除
+2. microCMS が Webhook で `/api/revalidate` に POST
+3. 署名を検証後、`/` と `/blog/[id]` のキャッシュを無効化
+4. 次のアクセス時に最新内容が表示される
+
+### フル Redeploy が必要な場合（参考）
+
+コード変更時は GitHub への push で Vercel が自動デプロイします。  
+コンテンツ更新だけなら Webhook 連携で十分です。
+
+## Firebase App Hosting（有料・参考）
+
+Blaze プランが必要なため、無料運用には Vercel を推奨します。Firebase を使う場合は `apphosting.yaml` と `firebase.json` を参照してください。
 
 ## 参考
 
 - [microCMS 公式ドキュメント](https://document.microcms.io/)
-- [Firebase App Hosting ドキュメント](https://firebase.google.com/docs/app-hosting)
-- [App Hosting ローカルデプロイ](https://firebase.google.com/docs/app-hosting/alt-deploy)
+- [Vercel ドキュメント](https://vercel.com/docs)
+- [Next.js on Vercel](https://vercel.com/docs/frameworks/nextjs)

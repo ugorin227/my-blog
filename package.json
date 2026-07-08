@@ -10,7 +10,9 @@
     "firebase:login": "firebase login",
     "firebase:init": "firebase init apphosting",
     "firebase:secrets": "firebase apphosting:secrets:set microcmsApiKey",
-    "deploy:firebase": "firebase deploy --only apphosting:my-blog"
+    "deploy:firebase": "firebase deploy --only apphosting:my-blog",
+    "vercel:login": "vercel login",
+    "vercel:deploy": "vercel --prod"
   },
   "dependencies": {
     "microcms-js-sdk": "^3.4.0",
