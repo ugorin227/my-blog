@@ -1,0 +1,21 @@
+# Firebase App Hosting configuration
+# https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: MICROCMS_SERVICE_DOMAIN
+    value: 84pn2ga8lc
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: MICROCMS_API_KEY
+    secret: microcmsApiKey
+    availability:
+      - BUILD
+      - RUNTIME

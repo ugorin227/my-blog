@@ -1,0 +1,32 @@
+{
+  "name": "my-blog",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "firebase:login": "firebase login",
+    "firebase:init": "firebase init apphosting",
+    "firebase:secrets": "firebase apphosting:secrets:set microcmsApiKey",
+    "deploy:firebase": "firebase deploy --only apphosting:my-blog"
+  },
+  "dependencies": {
+    "microcms-js-sdk": "^3.4.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "firebase-tools": "^14.4.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

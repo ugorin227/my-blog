@@ -1,0 +1,46 @@
+import { createClient } from "microcms-js-sdk";
+import type { Blog, BlogListResponse } from "@/types/blog";
+
+const serviceDomain = process.env.MICROCMS_SERVICE_DOMAIN;
+const apiKey = process.env.MICROCMS_API_KEY;
+
+export const isMicroCMSConfigured = Boolean(serviceDomain && apiKey);
+
+function getClient() {
+  if (!serviceDomain || !apiKey) {
+    throw new Error(
+      "microCMS の環境変数が設定されていません。.env.local を確認してください。",
+    );
+  }
+
+  return createClient({
+    serviceDomain,
+    apiKey,
+  });
+}
+
+export async function getBlogList(limit = 100): Promise<BlogListResponse> {
+  const client = getClient();
+
+  return client.get<BlogListResponse>({
+    endpoint: "blogs",
+    queries: {
+      orders: "-publishedAt",
+      limit,
+    },
+  });
+}
+
+export async function getBlogDetail(contentId: string): Promise<Blog> {
+  const client = getClient();
+
+  return client.get<Blog>({
+    endpoint: "blogs",
+    contentId,
+  });
+}
+
+export async function getAllBlogIds(): Promise<string[]> {
+  const { contents } = await getBlogList();
+  return contents.map((blog) => blog.id);
+}
