@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/Header";
+import { SITE_NAME } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "My Blog",
-  description: "microCMS で運用する個人ブログ",
+  title: SITE_NAME,
+  description: "形から入るソロキャンプとキャンプ道具のブログ",
 };
 
 export default function RootLayout({

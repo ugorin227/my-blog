@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SITE_NAME } from "@/lib/site";
 
 export function Header() {
   return (
@@ -6,9 +7,9 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
         <Link
           href="/"
-          className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
+          className="text-base font-semibold leading-snug tracking-tight text-zinc-900 sm:text-lg dark:text-zinc-50"
         >
-          My Blog
+          {SITE_NAME}
         </Link>
         <nav>
           <Link

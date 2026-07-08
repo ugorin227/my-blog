@@ -8,6 +8,7 @@ import {
   getBlogDetail,
   isMicroCMSConfigured,
 } from "@/lib/microcms";
+import { SITE_NAME } from "@/lib/site";
 
 export const revalidate = 60;
 
@@ -26,7 +27,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps) {
   if (!isMicroCMSConfigured) {
-    return { title: "My Blog" };
+    return { title: SITE_NAME };
   }
 
   const { id } = await params;
@@ -34,11 +35,11 @@ export async function generateMetadata({ params }: PageProps) {
   try {
     const blog = await getBlogDetail(id);
     return {
-      title: `${blog.title} | My Blog`,
+      title: `${blog.title} | ${SITE_NAME}`,
       description: blog.title,
     };
   } catch {
-    return { title: "記事が見つかりません | My Blog" };
+    return { title: `記事が見つかりません | ${SITE_NAME}` };
   }
 }
 
