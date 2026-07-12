@@ -4,11 +4,13 @@ import { notFound } from "next/navigation";
 import { SetupGuide } from "@/components/SetupGuide";
 import { formatDate } from "@/lib/date";
 import {
+  getAdjacentBlogs,
   getAllBlogIds,
   getBlogDetail,
   isMicroCMSConfigured,
 } from "@/lib/microcms";
 import { SITE_NAME } from "@/lib/site";
+import { ArticleNavigation } from "@/components/ArticleNavigation";
 
 export const revalidate = 60;
 
@@ -57,6 +59,8 @@ export default async function BlogDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  const adjacent = await getAdjacentBlogs(id);
+
   return (
     <article className="mx-auto max-w-3xl px-6 py-12">
       <Link
@@ -95,6 +99,8 @@ export default async function BlogDetailPage({ params }: PageProps) {
         className="article-body mt-10"
         dangerouslySetInnerHTML={{ __html: blog.content }}
       />
+
+      <ArticleNavigation adjacent={adjacent} />
     </article>
   );
 }
