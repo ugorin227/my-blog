@@ -18,7 +18,7 @@ export default async function Home() {
           記事一覧
         </h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          microCMS から取得した最新の記事です。
+          最新の記事一覧です。
         </p>
       </section>
 
