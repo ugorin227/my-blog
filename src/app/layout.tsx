@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: SITE_NAME,
   description: "形から入るソロキャンプとキャンプ道具のブログ",
+  verification: {
+    google: "mF2S0C2ozCdMdygtExaESPDbIZQ8u9_VIvrJ11NPRpM",
+  },
 };
 
 export default function RootLayout({
