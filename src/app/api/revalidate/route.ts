@@ -59,6 +59,9 @@ export async function POST(request: Request) {
   revalidatePath("/");
   revalidatedPaths.push("/");
 
+  revalidatePath("/sitemap.xml");
+  revalidatedPaths.push("/sitemap.xml");
+
   if (payload.id) {
     revalidatePath(`/blog/${payload.id}`);
     revalidatedPaths.push(`/blog/${payload.id}`);

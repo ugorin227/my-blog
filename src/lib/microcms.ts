@@ -42,8 +42,36 @@ export async function getBlogDetail(contentId: string): Promise<Blog> {
 }
 
 export async function getAllBlogIds(): Promise<string[]> {
-  const { contents } = await getBlogList();
-  return contents.map((blog) => blog.id);
+  const blogs = await getAllBlogs();
+  return blogs.map((blog) => blog.id);
+}
+
+export async function getAllBlogs(): Promise<Blog[]> {
+  const client = getClient();
+  const limit = 100;
+  let offset = 0;
+  const blogs: Blog[] = [];
+
+  while (true) {
+    const data = await client.get<BlogListResponse>({
+      endpoint: "blogs",
+      queries: {
+        orders: "-publishedAt",
+        limit,
+        offset,
+      },
+    });
+
+    blogs.push(...data.contents);
+
+    if (offset + data.contents.length >= data.totalCount) {
+      break;
+    }
+
+    offset += limit;
+  }
+
+  return blogs;
 }
 
 function toNavItem(blog: Blog): BlogNavItem {
