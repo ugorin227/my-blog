@@ -39,7 +39,9 @@ copy env.local.example .env.local
 | -------------------------- | ------------------------------------------------- |
 | `MICROCMS_SERVICE_DOMAIN`  | サービス URL の `https://xxxx.microcms.io` の `xxxx` 部分 |
 | `MICROCMS_API_KEY`         | microCMS 管理画面の API キー（GET 権限）              |
+| `MICROCMS_WRITE_API_KEY`   | 週次の新商品投稿に使う API キー（POST 権限。後述）      |
 | `MICROCMS_WEBHOOK_SECRET`  | microCMS Webhook 用シークレット（後述）               |
+| `CRON_SECRET`              | 週次投稿を起動する Cron のシークレット（後述）          |
 
 ### 3. 開発サーバーを起動
 
@@ -74,8 +76,10 @@ Next.js の Server Components / ISR をそのまま使える **Vercel Hobby プ�
 | Name | Value |
 | ---- | ----- |
 | `MICROCMS_SERVICE_DOMAIN` | `84pn2ga8lc` |
-| `MICROCMS_API_KEY` | microCMS の API キー |
+| `MICROCMS_API_KEY` | microCMS の API キー（GET） |
+| `MICROCMS_WRITE_API_KEY` | microCMS の API キー（POST。週次投稿を使う場合） |
 | `MICROCMS_WEBHOOK_SECRET` | Webhook 用シークレット（任意の長い文字列） |
+| `CRON_SECRET` | Cron 用シークレット（16文字以上のランダム文字列） |
 
 6. **Deploy** をクリック
 
@@ -140,6 +144,46 @@ Vercel に追加後、**Redeploy** してください（`/api/revalidate` を本
 
 コード変更時は GitHub への push で Vercel が自動デプロイします。  
 コンテンツ更新だけなら Webhook 連携で十分です。
+
+## キャンプギア新商品の週次投稿
+
+毎週月曜 9:00（日本時間）に、Vercel Cron が `/api/cron/new-camping-gear` を呼び出します。  
+キャンプメーカーとホームセンターのプライベートブランドの公式ニュースから、**直近2週間に発売が見つかった新商品**を集め、最大5件を1本の記事にして microCMS の `blogs` へ公開します。該当が1件もない週は投稿しません。
+
+対象の情報源は次のとおりです。
+
+| 区分 | ブランド |
+| ---- | -------- |
+| キャンプメーカー | スノーピーク、DOD、ユニフレーム、LOGOS、キャプテンスタッグ、コールマン、ogawa |
+| ホームセンターPB | ワークマン、カインズ、DCM |
+
+ホームセンターは、キャンプギア（テント、タープ、チェア、ランタンなど）の新商品だけを採用します。店舗の開店・閉店や休業案内は投稿しません。すでに同じ参照URLを載せた記事がある商品は、次の週には入れません。
+
+### 1. microCMS の書き込み用 API キー
+
+既存の `MICROCMS_API_KEY` は取得（GET）専用にしておき、投稿には別キーを使います。
+
+1. microCMS 管理画面 → **API キー**
+2. 権限に `blogs` の **POST** を含めたキーを発行
+3. その値を `MICROCMS_WRITE_API_KEY` として `.env.local` と Vercel の Environment Variables に追加
+
+`MICROCMS_WRITE_API_KEY` が無い場合は `MICROCMS_API_KEY` に POST 権限があれば、そちらで投稿します。
+
+### 2. Cron シークレット
+
+16文字以上のランダム文字列を `CRON_SECRET` に設定します。Vercel はこの値を `Authorization: Bearer ...` として Cron リクエストに付けます。未設定、または値が違うリクエストは記事を作りません。
+
+### 3. 動作確認
+
+本番の Cron は production デプロイでのみ動きます。投稿せずに中身だけ見る場合は次を実行します。
+
+```powershell
+curl -H "Authorization: Bearer <CRON_SECRET>" "https://<your-domain>/api/cron/new-camping-gear?dryRun=1"
+```
+
+`reason` が `dry_run` なら、その内容で投稿できます。`no_products_within_window` なら、直近2週間の新商品が無かったので見送りです。実際に公開するときは `dryRun=1` を外します。
+
+ローカルの判定ロジックは `npm test` で確認できます。
 
 ## Firebase App Hosting（有料・参考）
 
