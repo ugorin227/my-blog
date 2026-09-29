@@ -1,8 +1,14 @@
 export const RELEASE_WINDOW_DAYS = 14;
 export const PRODUCTS_PER_POST = 5;
 export const GEAR_POST_TITLE_MARK = "今週の新キャンプギア";
+export const AMAZON_POST_TITLE_MARK = "Amazon売上TOP5";
+export const AMAZON_ASSOCIATE_TAG = "erogemusou-22";
+export const AMAZON_BESTSELLERS_URL =
+  "https://www.amazon.co.jp/gp/bestsellers/sports/14315411";
+export const REVIEW_SUMMARY_MIN = 200;
+export const REVIEW_SUMMARY_MAX = 300;
 
-export type GearKind = "manufacturer" | "home-center";
+export type GearKind = "manufacturer" | "home-center" | "amazon";
 
 export type RawItem = {
   title: string;
@@ -37,6 +43,21 @@ export type BlogDraft = {
   content: string;
 };
 
+export type PostedHistory = {
+  urls: Set<string>;
+  titles: string[];
+};
+
+export type AmazonPick = {
+  rank: number;
+  asin: string;
+  title: string;
+  url: string;
+  images: string[];
+  summary: string;
+  ratingText: string | null;
+};
+
 export type SourceError = {
   sourceId: string;
   message: string;
@@ -56,6 +77,8 @@ export type RunResult = {
     | "posted"
     | "dry_run"
     | "no_products_within_window"
+    | "amazon_bestsellers_unavailable"
+    | "already_posted"
     | "all_sources_failed"
     | "publish_failed";
   title?: string;

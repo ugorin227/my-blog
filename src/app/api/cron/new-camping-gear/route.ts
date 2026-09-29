@@ -4,7 +4,11 @@ import type { NextRequest } from "next/server";
 import { publishCampingGearPost } from "@/lib/camping-gear/publish";
 import { runWeeklyCampingGearPost } from "@/lib/camping-gear/run";
 import { extractPostedGearUrls } from "@/lib/camping-gear/select";
-import { GEAR_POST_TITLE_MARK } from "@/lib/camping-gear/types";
+import {
+  AMAZON_POST_TITLE_MARK,
+  GEAR_POST_TITLE_MARK,
+  type PostedHistory,
+} from "@/lib/camping-gear/types";
 import { getBlogList, isMicroCMSConfigured } from "@/lib/microcms";
 
 export const dynamic = "force-dynamic";
@@ -26,16 +30,23 @@ function isAuthorized(request: Request, secret: string): boolean {
   return timingSafeEqual(actual, expected);
 }
 
-async function loadPostedUrls(): Promise<Set<string>> {
+async function loadPostedHistory(): Promise<PostedHistory> {
   if (!isMicroCMSConfigured) {
-    return new Set();
+    return { urls: new Set(), titles: [] };
   }
 
   const { contents } = await getBlogList(50);
   const urls = new Set<string>();
+  const titles: string[] = [];
 
   for (const blog of contents) {
-    if (!blog.title.includes(GEAR_POST_TITLE_MARK)) {
+    titles.push(blog.title);
+
+    const tracksProducts =
+      blog.title.includes(GEAR_POST_TITLE_MARK) ||
+      blog.title.includes(AMAZON_POST_TITLE_MARK);
+
+    if (!tracksProducts) {
       continue;
     }
 
@@ -44,7 +55,7 @@ async function loadPostedUrls(): Promise<Set<string>> {
     }
   }
 
-  return urls;
+  return { urls, titles };
 }
 
 export async function GET(request: NextRequest) {
@@ -64,7 +75,7 @@ export async function GET(request: NextRequest) {
   const dryRun = request.nextUrl.searchParams.get("dryRun") === "1";
   const result = await runWeeklyCampingGearPost({
     dryRun,
-    loadPostedUrls,
+    loadPostedHistory,
     publish: dryRun ? undefined : publishCampingGearPost,
   });
 
@@ -75,7 +86,8 @@ export async function GET(request: NextRequest) {
   }
 
   const status =
-    result.reason === "all_sources_failed"
+    result.reason === "all_sources_failed" ||
+    result.reason === "amazon_bestsellers_unavailable"
       ? 502
       : result.reason === "publish_failed"
         ? 500

@@ -148,7 +148,7 @@ Vercel に追加後、**Redeploy** してください（`/api/revalidate` を本
 ## キャンプギア新商品の週次投稿
 
 毎週月曜 9:00（日本時間）に、Vercel Cron が `/api/cron/new-camping-gear` を呼び出します。  
-キャンプメーカーとホームセンターのプライベートブランドの公式ニュースから、**直近2週間に発売が見つかった新商品**を集め、最大5件を1本の記事にして microCMS の `blogs` へ公開します。該当が1件もない週は投稿しません。
+キャンプメーカーとホームセンターのプライベートブランドの公式ニュースから、**直近2週間に発売が見つかった新商品**を集め、最大5件を1本の記事にして microCMS の `blogs` へ公開します。該当が1件もない週は、Amazon.co.jp のアウトドア用品・売れ筋ランキング上位5件を、アフィリエイトリンク付きで紹介します。
 
 対象の情報源は次のとおりです。
 
@@ -158,6 +158,8 @@ Vercel に追加後、**Redeploy** してください（`/api/revalidate` を本
 | ホームセンターPB | ワークマン、カインズ、DCM |
 
 ホームセンターは、キャンプギア（テント、タープ、チェア、ランタンなど）の新商品だけを採用します。店舗の開店・閉店や休業案内は投稿しません。すでに同じ参照URLを載せた記事がある商品は、次の週には入れません。
+
+Amazon紹介に切り替わった週は、各商品に商品画像を2〜3点引用し、カスタマーレビューの要約を200〜300文字で載せます。リンクにはアソシエイトID `erogemusou-22` を付けます。変更する場合は `AMAZON_ASSOCIATE_TAG` を設定してください。同じ日付のAmazon紹介がすでにある週は、二重投稿しません。
 
 ### 1. microCMS の書き込み用 API キー
 
@@ -181,7 +183,7 @@ Vercel に追加後、**Redeploy** してください（`/api/revalidate` を本
 curl -H "Authorization: Bearer <CRON_SECRET>" "https://<your-domain>/api/cron/new-camping-gear?dryRun=1"
 ```
 
-`reason` が `dry_run` なら、その内容で投稿できます。`no_products_within_window` なら、直近2週間の新商品が無かったので見送りです。実際に公開するときは `dryRun=1` を外します。
+`reason` が `dry_run` なら、その内容で投稿できます。新商品がない週は、応答のタイトルが `Amazon売上TOP5` になります。`amazon_bestsellers_unavailable` はランキングかレビュー要約を取れなかった週、`already_posted` は同じ日のAmazon紹介がすでにある週です。実際に公開するときは `dryRun=1` を外します。
 
 ローカルの判定ロジックは `npm test` で確認できます。
 

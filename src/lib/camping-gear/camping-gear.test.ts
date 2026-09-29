@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildGearPost } from "./article";
+import {
+  parseAspectSummaries,
+  parseBestsellerItems,
+  parseProductImages,
+  readAmazonProduct,
+  summarizeReviews,
+} from "./amazon";
+import { buildAmazonBestsellersPost, buildGearPost } from "./article";
 import { extractReleaseDate, jstDate, parseFlexibleDate } from "./dates";
 import { qualifyProduct } from "./filter";
 import {
@@ -14,7 +21,7 @@ import {
 import { parseRssItems } from "./rss";
 import { runWeeklyCampingGearPost } from "./run";
 import { extractPostedGearUrls, selectProducts } from "./select";
-import type { GearProduct, RawItem, SourceDefinition } from "./types";
+import type { AmazonPick, GearProduct, RawItem, SourceDefinition } from "./types";
 
 const now = new Date("2026-09-29T00:00:00+09:00");
 
@@ -257,11 +264,53 @@ test("公式ページの一覧とRSSから商品候補を読む", () => {
   );
 });
 
-test("該当がなければ投稿せず、あれば5件まで公開する", async () => {
-  const shelter = source({
-    parse: () => [raw()],
-  });
+function amazonPick(rank: number): AmazonPick {
+  return {
+    rank,
+    asin: `B00EXAMPLE${rank}`,
+    title: `キャンプチェア ${rank}`,
+    url: `https://www.amazon.co.jp/dp/B00EXAMPLE${rank}?tag=erogemusou-22`,
+    images: [
+      `https://m.media-amazon.com/images/I/61IMAGE${rank}A._AC_SL1500_.jpg`,
+      `https://m.media-amazon.com/images/I/61IMAGE${rank}B._AC_SL1500_.jpg`,
+      `https://m.media-amazon.com/images/I/61IMAGE${rank}C._AC_SL1500_.jpg`,
+    ],
+    summary: "あ".repeat(220),
+    ratingText: "5つ星のうち4.4（120件）",
+  };
+}
+
+test("新商品がなければAmazon売上TOP5をアフィリエイト付きで投稿する", async () => {
+  const picks = [1, 2, 3, 4, 5].map(amazonPick);
   let published = 0;
+  const posted = await runWeeklyCampingGearPost({
+    now,
+    sources: [
+      source({
+        parse: () => [raw({ title: "価格改定のお知らせ", summary: "" })],
+      }),
+    ],
+    fetchText: async () => "<html></html>",
+    loadAmazonBestsellers: async () => picks,
+    publish: async (draft) => {
+      published += 1;
+      assert.match(draft.title, /Amazon売上TOP5/);
+      assert.match(draft.content, /tag=erogemusou-22/);
+      assert.match(draft.content, /Amazonアソシエイト/);
+      assert.equal((draft.content.match(/<img /g) ?? []).length, 15);
+      assert.match(draft.content, /画像引用: Amazon.co.jp/);
+      for (const pick of picks) {
+        assert.ok(pick.summary.length >= 200 && pick.summary.length <= 300);
+        assert.match(draft.content, new RegExp(pick.summary));
+      }
+      return { id: "amazon-1" };
+    },
+  });
+
+  assert.equal(posted.reason, "posted");
+  assert.equal(posted.contentId, "amazon-1");
+  assert.equal(published, 1);
+
   const skipped = await runWeeklyCampingGearPost({
     now,
     sources: [
@@ -270,15 +319,21 @@ test("該当がなければ投稿せず、あれば5件まで公開する", asyn
       }),
     ],
     fetchText: async () => "<html></html>",
+    loadAmazonBestsellers: async () => [],
     publish: async () => {
       published += 1;
       return { id: "unused" };
     },
   });
-  assert.equal(skipped.reason, "no_products_within_window");
-  assert.equal(skipped.posted, false);
-  assert.equal(published, 0);
+  assert.equal(skipped.reason, "amazon_bestsellers_unavailable");
+  assert.equal(published, 1);
+});
 
+test("該当する新商品があれば5件まで公開する", async () => {
+  const shelter = source({
+    parse: () => [raw()],
+  });
+  let published = 0;
   const posted = await runWeeklyCampingGearPost({
     now,
     sources: [shelter],
@@ -338,4 +393,68 @@ test("ドライランは本文を返し、microCMSへは書かない", async () 
   assert.equal(result.reason, "dry_run");
   assert.equal(result.posted, false);
   assert.match(result.content ?? "", /シェルター/);
+});
+
+test("Amazonのランキング、画像、レビュー要約を商品ページから読む", () => {
+  const list = `
+    <div id="gridItemRoot"><div data-asin="B0BGRVM9FV"><span class="zg-bdg-text">#1</span>
+      <div class="_cDEzb_p13n-sc-css-line-clamp-3_g3dy1">撥水リュックカバー</div></div></div>
+    <div id="gridItemRoot"><div data-asin="B000000002"><span class="zg-bdg-text">#2</span>
+      <img alt="ロゴス(LOGOS) 保冷剤"></div></div>
+  `;
+  const ranked = parseBestsellerItems(list);
+  assert.deepEqual(
+    ranked.map((item) => item.asin),
+    ["B0BGRVM9FV", "B000000002"],
+  );
+  assert.equal(ranked[1]?.title, "ロゴス(LOGOS) 保冷剤");
+
+  const productHtml = `
+    <span id="productTitle">撥水リュックカバー</span>
+    <span id="acrPopover" title="5つ星のうち4.4"></span>
+    <span id="acrCustomerReviewText">(764)</span>
+    'colorImages': { 'initial': A.$.parseJSON('[{"hiRes":"https://m.media-amazon.com/images/I/61AYuQOpwbL._AC_SL1500_.jpg"},{"hiRes":"https://m.media-amazon.com/images/I/71YWp9sQUSL._AC_SL1500_.jpg"},{"hiRes":"https://m.media-amazon.com/images/I/61AYuQOpwbL._AC_SL1500_.jpg"},{"hiRes":"https://m.media-amazon.com/images/I/818-ErxmOBL._AC_SL1500_.jpg"}]') }
+    <span data-testid="aspect-summary">お客様はこの製品の防水性を高く評価しています。しっかり防水してくれるため、ぬれず、リュックの中へ雨水の侵入がなく威力抜群だと感じています。また、撥水性も抜群で、自転車通勤や雨の日に安心できると好評です。</span>
+    <span data-testid="aspect-summary">お客様はこの製品の携帯性を高く評価しています。軽量で持ち運びが便利だと感じており、通勤や通学時に重宝していると報告されています。雨粒を振り払えばカバンへしまえる点も好評です。自転車通学にも使えるという声があります。</span>
+  `;
+  const images = parseProductImages(productHtml);
+  assert.deepEqual(images, [
+    "https://m.media-amazon.com/images/I/61AYuQOpwbL._AC_SL1500_.jpg",
+    "https://m.media-amazon.com/images/I/71YWp9sQUSL._AC_SL1500_.jpg",
+    "https://m.media-amazon.com/images/I/818-ErxmOBL._AC_SL1500_.jpg",
+  ]);
+
+  const aspects = parseAspectSummaries(productHtml);
+  const summary = summarizeReviews(aspects);
+  assert.ok(summary);
+  assert.ok(summary.length >= 200 && summary.length <= 300);
+
+  const pick = readAmazonProduct(ranked[0], productHtml, "erogemusou-22");
+  assert.equal(pick?.url, "https://www.amazon.co.jp/dp/B0BGRVM9FV?tag=erogemusou-22");
+  assert.equal(pick?.images.length, 3);
+  assert.equal(pick?.ratingText, "5つ星のうち4.4（764件）");
+
+  const draft = buildAmazonBestsellersPost(
+    [1, 2, 3, 4, 5].map(amazonPick),
+    now,
+  );
+  assert.equal((draft.content.match(/<img /g) ?? []).length, 15);
+});
+
+test("同じ日のAmazon紹介は二重投稿しない", async () => {
+  const draft = buildAmazonBestsellersPost([1, 2, 3, 4, 5].map(amazonPick), now);
+  let published = 0;
+  const result = await runWeeklyCampingGearPost({
+    now,
+    sources: [source({ parse: () => [] })],
+    fetchText: async () => "<html></html>",
+    loadPostedHistory: async () => ({ urls: new Set(), titles: [draft.title] }),
+    loadAmazonBestsellers: async () => [1, 2, 3, 4, 5].map(amazonPick),
+    publish: async () => {
+      published += 1;
+      return { id: "dup" };
+    },
+  });
+  assert.equal(result.reason, "already_posted");
+  assert.equal(published, 0);
 });

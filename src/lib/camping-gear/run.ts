@@ -1,11 +1,14 @@
-import { buildGearPost } from "@/lib/camping-gear/article";
+import { fetchAmazonBestsellers } from "@/lib/camping-gear/amazon";
+import { buildAmazonBestsellersPost, buildGearPost } from "@/lib/camping-gear/article";
 import { qualifyProduct } from "@/lib/camping-gear/filter";
 import { PublishConfigError } from "@/lib/camping-gear/publish";
 import { selectProducts } from "@/lib/camping-gear/select";
 import { fetchSourceText, GEAR_SOURCES } from "@/lib/camping-gear/sources";
 import type {
+  AmazonPick,
   BlogDraft,
   GearProduct,
+  PostedHistory,
   RunResult,
   SourceDefinition,
   SourceError,
@@ -18,6 +21,8 @@ type RunOptions = {
   sources?: SourceDefinition[];
   fetchText?: (url: string) => Promise<string>;
   loadPostedUrls?: () => Promise<Set<string>>;
+  loadPostedHistory?: () => Promise<PostedHistory>;
+  loadAmazonBestsellers?: () => Promise<AmazonPick[]>;
   publish?: (draft: BlogDraft) => Promise<{ id: string }>;
 };
 
@@ -36,6 +41,125 @@ function toProductSummary(product: GearProduct) {
   };
 }
 
+function emptyHistory(): PostedHistory {
+  return { urls: new Set(), titles: [] };
+}
+
+async function publishAmazonFallback(input: {
+  now: Date;
+  dryRun: boolean;
+  history: PostedHistory;
+  scanned: number;
+  matched: number;
+  sourceErrors: SourceError[];
+  sourceReports: SourceReport[];
+  loadAmazonBestsellers: () => Promise<AmazonPick[]>;
+  publish?: (draft: BlogDraft) => Promise<{ id: string }>;
+}): Promise<RunResult> {
+  const shared = {
+    dryRun: input.dryRun,
+    scanned: input.scanned,
+    matched: input.matched,
+    sourceErrors: input.sourceErrors,
+    sourceReports: input.sourceReports,
+  };
+
+  let picks: AmazonPick[] = [];
+  try {
+    picks = await input.loadAmazonBestsellers();
+  } catch (error) {
+    return {
+      posted: false,
+      ...shared,
+      reason: "amazon_bestsellers_unavailable",
+      products: [],
+      message: `Amazonの売れ筋を取得できませんでした: ${errorMessage(error)}`,
+    };
+  }
+
+  if (picks.length < 5) {
+    return {
+      posted: false,
+      ...shared,
+      reason: "amazon_bestsellers_unavailable",
+      products: [],
+      message:
+        "画像2〜3点と200〜300文字のレビュー要約が揃った売上上位5件を集められませんでした。",
+    };
+  }
+
+  const draft = buildAmazonBestsellersPost(picks, input.now);
+  if (input.history.titles.includes(draft.title)) {
+    return {
+      posted: false,
+      ...shared,
+      reason: "already_posted",
+      title: draft.title,
+      products: [],
+      message: "今週のAmazon売上TOP5は投稿済みです。",
+    };
+  }
+
+  const products = picks.map((pick) => ({
+    brand: "Amazon.co.jp",
+    kind: "amazon" as const,
+    title: pick.title,
+    url: pick.url,
+    releaseDate: null,
+    publishedAt: input.now.toISOString(),
+  }));
+
+  if (input.dryRun) {
+    return {
+      posted: false,
+      ...shared,
+      dryRun: true,
+      reason: "dry_run",
+      title: draft.title,
+      content: draft.content,
+      products,
+    };
+  }
+
+  if (!input.publish) {
+    return {
+      posted: false,
+      ...shared,
+      reason: "publish_failed",
+      title: draft.title,
+      products,
+      message: "投稿処理が設定されていません。",
+    };
+  }
+
+  try {
+    const created = await input.publish(draft);
+    return {
+      posted: true,
+      ...shared,
+      dryRun: false,
+      reason: "posted",
+      title: draft.title,
+      contentId: created.id,
+      products,
+    };
+  } catch (error) {
+    const message =
+      error instanceof PublishConfigError
+        ? error.message
+        : `投稿に失敗しました: ${errorMessage(error)}`;
+
+    return {
+      posted: false,
+      ...shared,
+      reason: "publish_failed",
+      title: draft.title,
+      products,
+      message,
+    };
+  }
+}
+
 export async function runWeeklyCampingGearPost(
   options: RunOptions = {},
 ): Promise<RunResult> {
@@ -43,7 +167,8 @@ export async function runWeeklyCampingGearPost(
   const dryRun = options.dryRun ?? false;
   const sources = options.sources ?? GEAR_SOURCES;
   const fetchText = options.fetchText ?? fetchSourceText;
-  const loadPostedUrls = options.loadPostedUrls ?? (async () => new Set<string>());
+  const loadAmazonBestsellers =
+    options.loadAmazonBestsellers ?? (() => fetchAmazonBestsellers());
   const fetched = await Promise.all(
     sources.map(async (source) => {
       try {
@@ -115,9 +240,13 @@ export async function runWeeklyCampingGearPost(
     };
   }
 
-  let postedUrls = new Set<string>();
+  let history = emptyHistory();
   try {
-    postedUrls = await loadPostedUrls();
+    if (options.loadPostedHistory) {
+      history = await options.loadPostedHistory();
+    } else if (options.loadPostedUrls) {
+      history = { urls: await options.loadPostedUrls(), titles: [] };
+    }
   } catch (error) {
     return {
       posted: false,
@@ -132,20 +261,23 @@ export async function runWeeklyCampingGearPost(
     };
   }
 
-  const selected = selectProducts(matched, postedUrls);
+  const selected = selectProducts(matched, history.urls);
+  const base = {
+    dryRun,
+    scanned,
+    matched: matched.length,
+    sourceErrors,
+    sourceReports,
+  };
 
   if (selected.length === 0) {
-    return {
-      posted: false,
-      dryRun,
-      reason: "no_products_within_window",
-      products: [],
-      scanned,
-      matched: matched.length,
-      sourceErrors,
-      sourceReports,
-      message: "直近2週間の新しいキャンプギアが見つからなかったため、投稿しませんでした。",
-    };
+    return publishAmazonFallback({
+      ...base,
+      now,
+      history,
+      loadAmazonBestsellers,
+      publish: options.publish,
+    });
   }
 
   const draft = buildGearPost(selected, now);
