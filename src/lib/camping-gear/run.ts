@@ -1,6 +1,7 @@
 import { fetchAmazonBestsellers } from "@/lib/camping-gear/amazon";
 import { buildAmazonBestsellersPost, buildGearPost } from "@/lib/camping-gear/article";
 import { qualifyProduct } from "@/lib/camping-gear/filter";
+import { pickFeaturedImage, readOpenGraphImage } from "@/lib/camping-gear/images";
 import { PublishConfigError } from "@/lib/camping-gear/publish";
 import { selectProducts } from "@/lib/camping-gear/select";
 import { fetchSourceText, GEAR_SOURCES } from "@/lib/camping-gear/sources";
@@ -43,6 +44,48 @@ function toProductSummary(product: GearProduct) {
 
 function emptyHistory(): PostedHistory {
   return { urls: new Set(), titles: [] };
+}
+
+function isPdf(url: string): boolean {
+  try {
+    return new URL(url).pathname.toLowerCase().endsWith(".pdf");
+  } catch {
+    return false;
+  }
+}
+
+async function attachFeaturedImages(
+  products: GearProduct[],
+  fetchText: (url: string) => Promise<string>,
+): Promise<GearProduct[]> {
+  return Promise.all(
+    products.map(async (product) => {
+      if (isPdf(product.url)) {
+        return product;
+      }
+
+      try {
+        const html = await fetchText(product.url);
+        const featured = pickFeaturedImage(html, product.url, product.title);
+        let imageUrl = featured.imageUrl ?? product.imageUrl;
+
+        if (featured.productPageUrl) {
+          try {
+            const productHtml = await fetchText(featured.productPageUrl);
+            imageUrl =
+              readOpenGraphImage(productHtml, featured.productPageUrl) ??
+              imageUrl;
+          } catch {
+            imageUrl = imageUrl ?? product.imageUrl;
+          }
+        }
+
+        return { ...product, imageUrl };
+      } catch {
+        return product;
+      }
+    }),
+  );
 }
 
 async function publishAmazonFallback(input: {
@@ -261,7 +304,10 @@ export async function runWeeklyCampingGearPost(
     };
   }
 
-  const selected = selectProducts(matched, history.urls);
+  const selected = await attachFeaturedImages(
+    selectProducts(matched, history.urls),
+    fetchText,
+  );
   const base = {
     dryRun,
     scanned,

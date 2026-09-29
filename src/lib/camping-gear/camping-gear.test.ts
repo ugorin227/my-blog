@@ -10,6 +10,7 @@ import {
 import { buildAmazonBestsellersPost, buildGearPost } from "./article";
 import { extractReleaseDate, jstDate, parseFlexibleDate } from "./dates";
 import { qualifyProduct } from "./filter";
+import { pickFeaturedImage } from "./images";
 import {
   parseCainzNews,
   parseCampalNews,
@@ -60,6 +61,7 @@ function product(overrides: Partial<GearProduct> = {}): GearProduct {
     publishedAt: "2026-09-20T00:00:00.000Z",
     releaseDate: "2026-09-20T15:00:00.000Z",
     sortTime: new Date("2026-09-21T00:00:00+09:00").getTime(),
+    imageUrl: null,
     ...overrides,
   };
 }
@@ -206,6 +208,62 @@ test("記事本文に参照URLを残し、外部テキストはエスケープ�
   assert.match(draft.content, /参照URL: https:\/\/example.com\/gear/);
   assert.doesNotMatch(draft.content, /<script>/);
   assert.match(draft.content, /A &amp; B/);
+  assert.equal((draft.content.match(/<img /g) ?? []).length, 0);
+
+  const withPhoto = buildGearPost(
+    [
+      product({
+        imageUrl: "https://example.com/shelter.jpg",
+      }),
+    ],
+    now,
+  );
+  assert.equal((withPhoto.content.match(/<img /g) ?? []).length, 1);
+  assert.match(
+    withPhoto.content,
+    /src="https:\/\/example.com\/shelter.jpg" alt="画像は公式サイトより"/,
+  );
+  assert.match(withPhoto.content, /<p>画像は公式サイトより<\/p>/);
+});
+
+test("見出しの商品名がある写真を1枚選び、複数商品なら最初の紹介を使う", () => {
+  const named = pickFeaturedImage(
+    `
+      <meta property="og:title" content="新作テーブル「マジカルテーブル」が登場">
+      <meta property="og:image" content="https://www.dod.camp/file/table.jpg">
+      <img src="https://www.dod.camp/file/sidebar-banner.jpg" alt="別企画">
+      <h1>新作テーブル「マジカルテーブル」が登場</h1>
+      <img src="https://www.dod.camp/file/table.jpg" alt="マジカルテーブル">
+      <img src="https://www.dod.camp/file/parts.jpg">
+    `,
+    "https://www.dod.camp/news/release/1",
+    "新作テーブル「マジカルテーブル」が登場",
+  );
+  assert.equal(named.imageUrl, "https://www.dod.camp/file/table.jpg");
+
+  const lineup = pickFeaturedImage(
+    `
+      <meta property="og:image" content="https://www.logos.ne.jp/assets/img/brand-site/common/ogp.png">
+      <h2>【9月24日発売】2027モデル製品をリリース！</h2>
+      <img src="data:image/jpeg;base64,AAAA" data-filename="27E4web_w1440h640b.jpg">
+      <p>ピクニックにぴったりなスヌーピーから、スモーカーまで。</p>
+      <img src="data:image/jpeg;base64,BBBB" data-filename="SNOOPY.jpg">
+      <a href="https://www.logos.ne.jp/special/199">CAMP with SNOOPYシリーズ</a>
+      <img src="https://www.logos.ne.jp/storage/ec/products/smoker.jpg" data-filename="スモーク.jpg">
+      <a href="https://www.logos.ne.jp/products/info/11910">ちょっとスモークするCANCAN</a>
+      <p>上記以外にも新製品多数</p>
+    `,
+    "https://www.logos.ne.jp/news/1679",
+    "【9月24日発売】2027モデル製品をリリース！",
+  );
+  assert.equal(
+    lineup.imageUrl,
+    "https://www.logos.ne.jp/storage/ec/products/smoker.jpg",
+  );
+  assert.equal(
+    lineup.productPageUrl,
+    "https://www.logos.ne.jp/products/info/11910",
+  );
 });
 
 test("公式ページの一覧とRSSから商品候補を読む", () => {
@@ -337,11 +395,23 @@ test("該当する新商品があれば5件まで公開する", async () => {
   const posted = await runWeeklyCampingGearPost({
     now,
     sources: [shelter],
-    fetchText: async () => "<html></html>",
+    fetchText: async (url) => {
+      if (url.includes("shelter")) {
+        return `
+          <meta property="og:title" content="エアーフレームシェルター「エアロシェル」を新発売">
+          <meta property="og:image" content="https://example.com/aero.jpg">
+          <h1>エアーフレームシェルター「エアロシェル」を新発売</h1>
+        `;
+      }
+      return "<html></html>";
+    },
     loadPostedUrls: async () => new Set<string>(),
     publish: async (draft) => {
       published += 1;
       assert.match(draft.content, /example.com\/products\/shelter/);
+      assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
+      assert.match(draft.content, /alt="画像は公式サイトより"/);
+      assert.match(draft.content, /src="https:\/\/example.com\/aero.jpg"/);
       return { id: "post-1" };
     },
   });

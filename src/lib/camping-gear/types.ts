@@ -16,6 +16,7 @@ export type RawItem = {
   dateText: string;
   summary?: string;
   categories?: string[];
+  imageUrl?: string;
 };
 
 export type GearProduct = {
@@ -28,6 +29,7 @@ export type GearProduct = {
   publishedAt: string;
   releaseDate: string | null;
   sortTime: number;
+  imageUrl: string | null;
 };
 
 export type SourceDefinition = {

@@ -92,5 +92,6 @@ export function qualifyProduct(
     publishedAt: publishedAt.toISOString(),
     releaseDate: releaseDate ? releaseDate.toISOString() : null,
     sortTime: (releaseDate ?? publishedAt).getTime(),
+    imageUrl: raw.imageUrl ? safeHttpUrl(raw.imageUrl) : null,
   };
 }

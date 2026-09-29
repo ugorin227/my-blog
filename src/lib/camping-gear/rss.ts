@@ -12,8 +12,11 @@ export function parseRssItems(xml: string): RawItem[] {
       const dateText = readTag(block, "pubDate").trim();
       const summary = cleanText(readTag(block, "description"));
       const categories = readTags(block, "category");
+      const imageUrl = block.match(
+        /<img\b[^>]*(?:data-src|src)="(https?:\/\/[^"]+)"/i,
+      )?.[1];
 
-      return { title, url, dateText, summary, categories };
+      return { title, url, dateText, summary, categories, imageUrl };
     })
     .filter((item) => item.title && item.url && item.dateText);
 }

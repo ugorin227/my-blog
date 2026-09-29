@@ -13,6 +13,7 @@ export function parseLogosNews(html: string, listUrl: string): RawItem[] {
   for (const match of html.matchAll(/<article\b[\s\S]*?<\/article>/gi)) {
     const block = match[0];
     const href = block.match(/<a href="([^"]+)"/i)?.[1];
+    const image = block.match(/<img[^>]+src="([^"]+)"/i)?.[1];
     const title = cleanText(block.match(/<h2>([\s\S]*?)<\/h2>/i)?.[1] ?? "");
     const dateText = cleanText(block.match(/<time>([\s\S]*?)<\/time>/i)?.[1] ?? "");
     const categories = [...block.matchAll(/<p class="cat">([\s\S]*?)<\/p>/gi)].map(
@@ -28,6 +29,7 @@ export function parseLogosNews(html: string, listUrl: string): RawItem[] {
       url: resolveUrl(href, listUrl),
       dateText,
       categories,
+      imageUrl: image ? resolveUrl(image, listUrl) : undefined,
     });
   }
 

@@ -4,6 +4,7 @@ import {
   AMAZON_POST_TITLE_MARK,
   GEAR_POST_TITLE_MARK,
 } from "@/lib/camping-gear/types";
+import { OFFICIAL_IMAGE_DESCRIPTION } from "@/lib/camping-gear/images";
 import { escapeHtml } from "@/lib/camping-gear/text";
 
 function kindLabel(kind: GearProduct["kind"]): string {
@@ -20,9 +21,13 @@ export function buildGearPost(products: GearProduct[], now: Date): BlogDraft {
     const summary = product.summary
       ? `<p>${escapeHtml(product.summary)}</p>`
       : "";
+    const image = product.imageUrl
+      ? `<p><img src="${escapeHtml(product.imageUrl)}" alt="${OFFICIAL_IMAGE_DESCRIPTION}"></p><p>${OFFICIAL_IMAGE_DESCRIPTION}</p>`
+      : "";
 
     return [
       `<h2>${escapeHtml(product.title)}</h2>`,
+      image,
       "<ul>",
       `<li>ブランド: ${escapeHtml(product.brand)}（${kindLabel(product.kind)}）</li>`,
       `<li>${whenLabel}: ${when}</li>`,
