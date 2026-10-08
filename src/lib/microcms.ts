@@ -20,9 +20,16 @@ function getClient() {
   });
 }
 
+type CategoryListResponse = {
+  contents: BlogCategory[];
+  totalCount: number;
+  offset: number;
+  limit: number;
+};
+
 export async function getCategories(): Promise<BlogCategory[]> {
   const client = getClient();
-  const data = await client.get<BlogListResponse & { contents: BlogCategory[] }>({
+  const data = await client.get<CategoryListResponse>({
     endpoint: "categories",
     queries: {
       orders: "publishedAt",
