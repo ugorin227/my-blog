@@ -10,6 +10,7 @@ import {
 import { buildAmazonBestsellersPost, buildGearPost } from "./article";
 import { extractReleaseDate, jstDate, parseFlexibleDate } from "./dates";
 import { qualifyProduct } from "./filter";
+import { buildCampingGearPayload } from "./publish";
 import { pickFeaturedImage } from "./images";
 import {
   parseCainzNews,
@@ -224,6 +225,17 @@ test("記事本文に参照URLを残し、外部テキストはエスケープ�
     /src="https:\/\/example.com\/shelter.jpg" alt="画像は公式サイトより"/,
   );
   assert.match(withPhoto.content, /<p>画像は公式サイトより<\/p>/);
+});
+
+test("週次投稿はキャンプカテゴリーのIDを付けて保存する", () => {
+  const payload = buildCampingGearPayload(
+    { title: "今週のギア", content: "<p>本文</p>" },
+    "t39sasn8v",
+  );
+
+  assert.equal(payload.category, "t39sasn8v");
+  assert.equal(payload.title, "今週のギア");
+  assert.match(payload.content, /本文/);
 });
 
 test("見出しの商品名がある写真を1枚選び、複数商品なら最初の紹介を使う", () => {

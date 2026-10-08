@@ -1,5 +1,47 @@
 import type { BlogDraft } from "@/lib/camping-gear/types";
 
+export const CAMPING_GEAR_CATEGORY_NAME = "キャンプ";
+
+export function buildCampingGearPayload(draft: BlogDraft, categoryId: string) {
+  return {
+    title: draft.title,
+    content: draft.content,
+    category: categoryId,
+  };
+}
+
+async function findCategoryId(
+  serviceDomain: string,
+  apiKey: string,
+  name: string,
+): Promise<string> {
+  const filters = `name[equals]${name}`;
+  const response = await fetch(
+    `https://${serviceDomain}.microcms.io/api/v1/categories?filters=${encodeURIComponent(filters)}&fields=id,name&limit=1`,
+    {
+      headers: { "X-MICROCMS-API-KEY": apiKey },
+    },
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(
+      `カテゴリー「${name}」を取得できませんでした (${response.status}): ${detail.slice(0, 200)}`,
+    );
+  }
+
+  const payload = (await response.json()) as {
+    contents?: Array<{ id?: string }>;
+  };
+  const categoryId = payload.contents?.[0]?.id;
+
+  if (!categoryId) {
+    throw new Error(`カテゴリー「${name}」が microCMS にありません。`);
+  }
+
+  return categoryId;
+}
+
 export class PublishConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -20,6 +62,12 @@ export async function publishCampingGearPost(
     );
   }
 
+  const categoryId = await findCategoryId(
+    serviceDomain,
+    process.env.MICROCMS_API_KEY || apiKey,
+    CAMPING_GEAR_CATEGORY_NAME,
+  );
+
   const response = await fetch(
     `https://${serviceDomain}.microcms.io/api/v1/blogs`,
     {
@@ -28,10 +76,7 @@ export async function publishCampingGearPost(
         "Content-Type": "application/json",
         "X-MICROCMS-API-KEY": apiKey,
       },
-      body: JSON.stringify({
-        title: draft.title,
-        content: draft.content,
-      }),
+      body: JSON.stringify(buildCampingGearPayload(draft, categoryId)),
     },
   );
 

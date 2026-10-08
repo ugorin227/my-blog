@@ -18,7 +18,7 @@ export function BlogCard({ blog }: BlogCardProps) {
               alt={blog.title}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-              sizes="(max-width: 768px) 100vw, 672px"
+              sizes="(max-width: 768px) 100vw, 896px"
             />
           </div>
         )}
@@ -31,6 +31,11 @@ export function BlogCard({ blog }: BlogCardProps) {
         <h2 className="mt-2 text-xl font-semibold leading-snug text-zinc-900 transition-colors group-hover:text-blue-600 dark:text-zinc-50 dark:group-hover:text-blue-400">
           {blog.title}
         </h2>
+        {blog.category?.name && (
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            {blog.category.name}
+          </p>
+        )}
       </Link>
     </article>
   );

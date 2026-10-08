@@ -29,7 +29,7 @@ export function Header() {
           />
         </picture>
       </Link>
-      <div className="mx-auto flex max-w-3xl justify-end px-6 py-2">
+      <div className="mx-auto flex max-w-6xl justify-end px-6 py-2">
         <Link
           href="/"
           className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"

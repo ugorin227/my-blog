@@ -7,10 +7,12 @@ import {
   getAdjacentBlogs,
   getAllBlogIds,
   getBlogDetail,
+  getCategories,
   isMicroCMSConfigured,
 } from "@/lib/microcms";
 import { SITE_NAME } from "@/lib/site";
 import { ArticleNavigation } from "@/components/ArticleNavigation";
+import { BlogColumns } from "@/components/BlogColumns";
 
 export const revalidate = 60;
 
@@ -59,15 +61,26 @@ export default async function BlogDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const adjacent = await getAdjacentBlogs(id);
+  const [adjacent, categories] = await Promise.all([
+    getAdjacentBlogs(id),
+    getCategories(),
+  ]);
 
   return (
-    <article className="mx-auto max-w-3xl px-6 py-12">
+    <BlogColumns
+      categories={categories}
+      activeCategoryId={blog.category?.id}
+    >
+    <article>
       <Link
-        href="/"
+        href={
+          blog.category
+            ? `/?category=${blog.category.id}`
+            : "/"
+        }
         className="inline-flex items-center text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
       >
-        ← 記事一覧へ
+        ← {blog.category ? blog.category.name : "記事一覧"}へ
       </Link>
 
       <header className="mt-8">
@@ -80,6 +93,11 @@ export default async function BlogDetailPage({ params }: PageProps) {
         <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50">
           {blog.title}
         </h1>
+        {blog.category && (
+          <p className="mt-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            {blog.category.name}
+          </p>
+        )}
       </header>
 
       {blog.eyecatch && (
@@ -90,7 +108,7 @@ export default async function BlogDetailPage({ params }: PageProps) {
             fill
             className="object-cover"
             priority
-            sizes="(max-width: 768px) 100vw, 768px"
+            sizes="(max-width: 768px) 100vw, 896px"
           />
         </div>
       )}
@@ -102,5 +120,6 @@ export default async function BlogDetailPage({ params }: PageProps) {
 
       <ArticleNavigation adjacent={adjacent} />
     </article>
+    </BlogColumns>
   );
 }

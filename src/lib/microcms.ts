@@ -1,5 +1,5 @@
 import { createClient } from "microcms-js-sdk";
-import type { Blog, BlogListResponse } from "@/types/blog";
+import type { Blog, BlogCategory, BlogListResponse } from "@/types/blog";
 import type { AdjacentBlogs, BlogNavItem } from "@/types/navigation";
 
 const serviceDomain = process.env.MICROCMS_SERVICE_DOMAIN;
@@ -20,7 +20,24 @@ function getClient() {
   });
 }
 
-export async function getBlogList(limit = 100): Promise<BlogListResponse> {
+export async function getCategories(): Promise<BlogCategory[]> {
+  const client = getClient();
+  const data = await client.get<BlogListResponse & { contents: BlogCategory[] }>({
+    endpoint: "categories",
+    queries: {
+      orders: "publishedAt",
+      limit: 100,
+      fields: "id,name",
+    },
+  });
+
+  return data.contents.filter((category) => category.id && category.name);
+}
+
+export async function getBlogList(
+  limit = 100,
+  categoryId?: string,
+): Promise<BlogListResponse> {
   const client = getClient();
 
   return client.get<BlogListResponse>({
@@ -28,6 +45,7 @@ export async function getBlogList(limit = 100): Promise<BlogListResponse> {
     queries: {
       orders: "-publishedAt",
       limit,
+      ...(categoryId ? { filters: `category[equals]${categoryId}` } : {}),
     },
   });
 }
