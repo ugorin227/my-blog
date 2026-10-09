@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/JsonLd";
 import { SetupGuide } from "@/components/SetupGuide";
 import { formatDate } from "@/lib/date";
 import {
@@ -10,6 +11,7 @@ import {
   getCategories,
   isMicroCMSConfigured,
 } from "@/lib/microcms";
+import { articleJsonLd, breadcrumbJsonLd, describeHtml, firstContentImage } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 import { ArticleNavigation } from "@/components/ArticleNavigation";
 import { BlogColumns } from "@/components/BlogColumns";
@@ -38,9 +40,30 @@ export async function generateMetadata({ params }: PageProps) {
 
   try {
     const blog = await getBlogDetail(id);
+    const description = describeHtml(blog.content ?? "", blog.title);
+    const image = blog.eyecatch?.url ?? firstContentImage(blog.content ?? "");
+    const path = `/blog/${blog.id}`;
+
     return {
-      title: `${blog.title} | ${SITE_NAME}`,
-      description: blog.title,
+      title: blog.title,
+      description,
+      alternates: { canonical: path },
+      openGraph: {
+        type: "article",
+        url: path,
+        title: blog.title,
+        description,
+        publishedTime: blog.publishedAt ?? blog.createdAt,
+        modifiedTime: blog.revisedAt ?? blog.publishedAt ?? blog.createdAt,
+        tags: blog.category?.name ? [blog.category.name] : undefined,
+        images: image ? [{ url: image, alt: blog.title }] : undefined,
+      },
+      twitter: {
+        card: image ? "summary_large_image" : "summary",
+        title: blog.title,
+        description,
+        images: image ? [image] : undefined,
+      },
     };
   } catch {
     return { title: `記事が見つかりません | ${SITE_NAME}` };
@@ -66,11 +89,35 @@ export default async function BlogDetailPage({ params }: PageProps) {
     getCategories(),
   ]);
 
+  const description = describeHtml(blog.content ?? "", blog.title);
+  const image = blog.eyecatch?.url ?? firstContentImage(blog.content ?? "");
+  const crumbs = [
+    { name: "記事一覧", path: "/" },
+    ...(blog.category
+      ? [{ name: blog.category.name, path: `/?category=${blog.category.id}` }]
+      : []),
+    { name: blog.title, path: `/blog/${blog.id}` },
+  ];
+
   return (
     <BlogColumns
       categories={categories}
       activeCategoryId={blog.category?.id}
     >
+    <JsonLd
+      data={articleJsonLd({
+        id: blog.id,
+        title: blog.title,
+        content: blog.content ?? "",
+        description,
+        publishedAt: blog.publishedAt,
+        revisedAt: blog.revisedAt,
+        createdAt: blog.createdAt,
+        categoryName: blog.category?.name,
+        imageUrl: image,
+      })}
+    />
+    <JsonLd data={breadcrumbJsonLd(crumbs)} />
     <article>
       <Link
         href={

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/camping-gear/camping-gear.test.ts",
+    "test": "tsx --test src/lib/seo.test.ts src/lib/camping-gear/camping-gear.test.ts",
     "firebase:login": "firebase login",
     "firebase:init": "firebase init apphosting",
     "firebase:secrets": "firebase apphosting:secrets:set microcmsApiKey",

@@ -222,8 +222,9 @@ test("記事本文に参照URLを残し、外部テキストはエスケープ�
   assert.equal((withPhoto.content.match(/<img /g) ?? []).length, 1);
   assert.match(
     withPhoto.content,
-    /src="https:\/\/example.com\/shelter.jpg" alt="画像は公式サイトより"/,
+    /src="https:\/\/example.com\/shelter.jpg" alt="スノーピークのシェルター。画像は公式サイトより"/,
   );
+  assert.match(withPhoto.content, /^<p>.{40,120}<\/p>/);
   assert.match(withPhoto.content, /<p>画像は公式サイトより<\/p>/);
 });
 
@@ -422,7 +423,8 @@ test("該当する新商品があれば5件まで公開する", async () => {
       published += 1;
       assert.match(draft.content, /example.com\/products\/shelter/);
       assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
-      assert.match(draft.content, /alt="画像は公式サイトより"/);
+      assert.match(draft.content, /画像は公式サイトより/);
+      assert.match(draft.content, /alt="[^"]*エアーフレームシェルター/);
       assert.match(draft.content, /src="https:\/\/example.com\/aero.jpg"/);
       return { id: "post-1" };
     },

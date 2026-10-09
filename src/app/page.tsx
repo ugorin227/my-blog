@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import { BlogCard } from "@/components/BlogCard";
 import { BlogColumns } from "@/components/BlogColumns";
+import { JsonLd } from "@/components/JsonLd";
 import { SetupGuide } from "@/components/SetupGuide";
 import { getBlogList, getCategories, isMicroCMSConfigured } from "@/lib/microcms";
+import { blogJsonLd } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE_SUFFIX } from "@/lib/site";
 
 export const revalidate = 60;
 
@@ -15,6 +19,60 @@ function requestedCategory(value: string | string[] | undefined): string | undef
     return undefined;
   }
   return category;
+}
+
+function categoryDescription(name: string): string {
+  return `${name}の記事一覧です。${SITE_DESCRIPTION}`;
+}
+
+export async function generateMetadata({ searchParams }: HomeProps): Promise<Metadata> {
+  if (!isMicroCMSConfigured) {
+    return { title: { absolute: SITE_NAME }, description: SITE_DESCRIPTION };
+  }
+
+  const params = await searchParams;
+  const categories = await getCategories();
+  const categoryId = requestedCategory(params.category);
+  const selected = categories.find((category) => category.id === categoryId);
+
+  if (categoryId && !selected) {
+    return {
+      title: "カテゴリーが見つかりません",
+      robots: { index: false, follow: true },
+    };
+  }
+
+  if (!selected) {
+    return {
+      title: { absolute: SITE_NAME },
+      description: SITE_DESCRIPTION,
+      alternates: { canonical: "/" },
+      openGraph: {
+        type: "website",
+        title: SITE_NAME,
+        description: SITE_DESCRIPTION,
+        url: "/",
+      },
+    };
+  }
+
+  const description = categoryDescription(selected.name);
+  const { totalCount } = await getBlogList(1, selected.id);
+
+  const title = `${selected.name}の記事｜${SITE_TITLE_SUFFIX}`;
+
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: `/?category=${selected.id}` },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url: `/?category=${selected.id}`,
+    },
+    robots: totalCount === 0 ? { index: false, follow: true } : undefined,
+  };
 }
 
 export default async function Home({ searchParams }: HomeProps) {
@@ -36,6 +94,9 @@ export default async function Home({ searchParams }: HomeProps) {
       categories={categories}
       activeCategoryId={selected?.id ?? (unknownCategory ? undefined : "all")}
     >
+      <JsonLd
+        data={blogJsonLd(selected ? categoryDescription(selected.name) : SITE_DESCRIPTION)}
+      />
       <section className="mb-12">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
           {selected ? selected.name : "記事一覧"}
