@@ -39,7 +39,7 @@ export function parseLogosNews(html: string, listUrl: string): RawItem[] {
 export function parseCaptainStagNews(html: string, listUrl: string): RawItem[] {
   const items: RawItem[] = [];
   const pattern =
-    /<a href="([^"]+)"[\s\S]*?<span class="ico_cate">([\s\S]*?)<\/span>[\s\S]*?<span class="news_date">([\s\S]*?)<\/span>[\s\S]*?<span class="news_title">([\s\S]*?)<\/span>/gi;
+    /<a href="([^"]+)"[^>]*>(?:(?!<\/a>)[\s\S])*?<span class="ico_cate">([\s\S]*?)<\/span>(?:(?!<\/a>)[\s\S])*?<span class="news_date">([\s\S]*?)<\/span>(?:(?!<\/a>)[\s\S])*?<span class="news_title">([\s\S]*?)<\/span>/gi;
 
   for (const match of html.matchAll(pattern)) {
     pushItem(items, {

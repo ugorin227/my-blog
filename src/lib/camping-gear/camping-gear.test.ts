@@ -372,10 +372,12 @@ test("公式ページの一覧とRSSから商品候補を読む", () => {
   assert.equal(logos[0]?.dateText, "2026.09.10");
 
   const captain = parseCaptainStagNews(
-    `<a href="https://www.captainstag.net/news/012694.html"><span class="ico_cate">商品情報</span><span class="news_date">2026.08.04</span><span class="news_title">クーラーボックスを発売</span></a>`,
+    `<a href="/"><span>ホーム</span></a><ul class="news_entry_list"><li><a href="https://www.captainstag.net/news/012721.html"><span class="ico_cate">商品情報</span><span class="news_pic"><img src="https://www.captainstag.net/news/stove.jpg"></span><span class="news_date">2026.10.07</span><span class="news_title">石油ストーブに50周年記念モデル登場</span></a></li></ul>`,
     "https://www.captainstag.net/news/",
   );
   assert.equal(captain[0]?.categories?.[0], "商品情報");
+  assert.equal(captain[0]?.url, "https://www.captainstag.net/news/012721.html");
+  assert.equal(captain[0]?.title, "石油ストーブに50周年記念モデル登場");
 
   const coleman = parseColemanNews(
     `<span class="date-cate date-cate--green">お知らせ</span><span class="date-txt">2026/9/24</span><div class="news-list-ttl"><a href="20260924">価格改定のお知らせ</a></div>`,
