@@ -1,3 +1,4 @@
+import { hostOfficialImages } from "@/lib/camping-gear/media";
 import type { BlogDraft } from "@/lib/camping-gear/types";
 
 export const CAMPING_GEAR_CATEGORY_NAME = "キャンプ";
@@ -68,6 +69,7 @@ export async function publishCampingGearPost(
     CAMPING_GEAR_CATEGORY_NAME,
   );
 
+  const content = await hostOfficialImages(draft.content);
   const response = await fetch(
     `https://${serviceDomain}.microcms.io/api/v1/blogs`,
     {
@@ -76,7 +78,9 @@ export async function publishCampingGearPost(
         "Content-Type": "application/json",
         "X-MICROCMS-API-KEY": apiKey,
       },
-      body: JSON.stringify(buildCampingGearPayload(draft, categoryId)),
+      body: JSON.stringify(
+        buildCampingGearPayload({ ...draft, content }, categoryId),
+      ),
     },
   );
 

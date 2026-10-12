@@ -13,6 +13,12 @@ import { qualifyProduct } from "./filter";
 import { buildCampingGearPayload } from "./publish";
 import { pickFeaturedImage } from "./images";
 import {
+  hostOfficialImages,
+  MediaPermissionError,
+  officialImageMarkup,
+  sniffImage,
+} from "./media";
+import {
   parseCainzNews,
   parseCampalNews,
   parseCaptainStagNews,
@@ -222,10 +228,75 @@ test("記事本文に参照URLを残し、外部テキストはエスケープ�
   assert.equal((withPhoto.content.match(/<img /g) ?? []).length, 1);
   assert.match(
     withPhoto.content,
-    /src="https:\/\/example.com\/shelter.jpg" alt="スノーピークのシェルター。画像は公式サイトより"/,
+    /<figure><img src="https:\/\/example.com\/shelter.jpg" alt="スノーピークのシェルター"><figcaption>画像は公式サイトより<\/figcaption><\/figure>/,
   );
   assert.match(withPhoto.content, /^<p>.{40,120}<\/p>/);
-  assert.match(withPhoto.content, /<p>画像は公式サイトより<\/p>/);
+  assert.doesNotMatch(withPhoto.content, /<p>画像は公式サイトより<\/p>/);
+});
+
+test("公式画像はmicroCMSへ置き、失敗した画像はキャプションごと省く", async () => {
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  );
+  const sniffed = sniffImage(png, "https://example.com/files/shelter%20photo.png");
+  assert.equal(sniffed?.mime, "image/png");
+  assert.equal(sniffed?.filename, "shelter-photo.png");
+  assert.equal(sniffImage(Buffer.from("not-an-image"), "https://example.com/a.jpg"), null);
+
+  const html = [
+    officialImageMarkup("https://example.com/shelter.jpg?w=1&h=2", "スノーピークのシェルター"),
+    officialImageMarkup(
+      "https://images.microcms-assets.io/assets/service/kept.jpg",
+      "掲載済み",
+    ),
+    officialImageMarkup("https://example.com/missing.jpg", "取得できない写真"),
+  ].join("");
+
+  const downloaded: string[] = [];
+  const hosted = await hostOfficialImages(html, {
+    download: async (url) => {
+      downloaded.push(url);
+      if (url.includes("missing")) {
+        throw new Error("404");
+      }
+      return {
+        bytes: png,
+        mime: "image/png",
+        filename: "shelter.jpg",
+      };
+    },
+    upload: async () =>
+      "https://images.microcms-assets.io/assets/service/shelter.jpg",
+  });
+
+  assert.match(
+    hosted,
+    /<figure><img src="https:\/\/images\.microcms-assets\.io\/assets\/service\/shelter\.jpg" alt="スノーピークのシェルター"><figcaption>画像は公式サイトより<\/figcaption><\/figure>/,
+  );
+  assert.match(hosted, /assets\/service\/kept\.jpg/);
+  assert.equal((hosted.match(/<img /g) ?? []).length, 2);
+  assert.doesNotMatch(hosted, /missing\.jpg/);
+  assert.doesNotMatch(hosted, /<p>画像は公式サイトより<\/p>/);
+  assert.deepEqual(downloaded, [
+    "https://example.com/shelter.jpg?w=1&h=2",
+    "https://example.com/missing.jpg",
+  ]);
+
+  await assert.rejects(
+    () =>
+      hostOfficialImages(officialImageMarkup("https://example.com/a.jpg", "写真"), {
+        download: async () => ({
+          bytes: png,
+          mime: "image/png",
+          filename: "a.png",
+        }),
+        upload: async () => {
+          throw new MediaPermissionError("権限がありません。");
+        },
+      }),
+    MediaPermissionError,
+  );
 });
 
 test("週次投稿はキャンプカテゴリーのIDを付けて保存する", () => {
@@ -423,8 +494,12 @@ test("該当する新商品があれば5件まで公開する", async () => {
       published += 1;
       assert.match(draft.content, /example.com\/products\/shelter/);
       assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
-      assert.match(draft.content, /画像は公式サイトより/);
+      assert.match(
+        draft.content,
+        /<figcaption>画像は公式サイトより<\/figcaption>/,
+      );
       assert.match(draft.content, /alt="[^"]*エアーフレームシェルター/);
+      assert.doesNotMatch(draft.content, /alt="[^"]*画像は公式サイトより/);
       assert.match(draft.content, /src="https:\/\/example.com\/aero.jpg"/);
       return { id: "post-1" };
     },

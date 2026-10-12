@@ -4,7 +4,7 @@ import {
   AMAZON_POST_TITLE_MARK,
   GEAR_POST_TITLE_MARK,
 } from "@/lib/camping-gear/types";
-import { OFFICIAL_IMAGE_DESCRIPTION } from "@/lib/camping-gear/images";
+import { officialImageMarkup } from "@/lib/camping-gear/media";
 import { clipDescription } from "@/lib/seo";
 import { escapeHtml } from "@/lib/camping-gear/text";
 
@@ -70,8 +70,7 @@ function gearTitle(products: GearProduct[], now: Date): string {
 
 function imageAlt(product: GearProduct): string {
   const label = productLabel(product);
-  const subject = label === product.brand ? product.brand : `${product.brand}の${label}`;
-  return `${subject}。${OFFICIAL_IMAGE_DESCRIPTION}`;
+  return label === product.brand ? product.brand : `${product.brand}の${label}`;
 }
 
 export function buildGearPost(products: GearProduct[], now: Date): BlogDraft {
@@ -87,7 +86,7 @@ export function buildGearPost(products: GearProduct[], now: Date): BlogDraft {
       ? `<p>${escapeHtml(product.summary)}</p>`
       : "";
     const image = product.imageUrl
-      ? `<p><img src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(imageAlt(product))}"></p><p>${OFFICIAL_IMAGE_DESCRIPTION}</p>`
+      ? officialImageMarkup(product.imageUrl, imageAlt(product))
       : "";
 
     return [
