@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Footer } from "@/components/Footer";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { Header } from "@/components/Header";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE_SUFFIX, SITE_URL } from "@/lib/site";
@@ -69,6 +70,7 @@ export default function RootLayout({
         <GoogleAnalytics />
         <Header />
         <main className="flex-1">{children}</main>
+        <Footer />
       </body>
     </html>
   );
