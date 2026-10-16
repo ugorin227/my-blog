@@ -24,7 +24,7 @@ type RunOptions = {
   loadPostedUrls?: () => Promise<Set<string>>;
   loadPostedHistory?: () => Promise<PostedHistory>;
   loadAmazonBestsellers?: () => Promise<AmazonPick[]>;
-  publish?: (draft: BlogDraft) => Promise<{ id: string }>;
+  publish?: (draft: BlogDraft, now: Date) => Promise<{ id: string }>;
 };
 
 function errorMessage(error: unknown): string {
@@ -97,7 +97,7 @@ async function publishAmazonFallback(input: {
   sourceErrors: SourceError[];
   sourceReports: SourceReport[];
   loadAmazonBestsellers: () => Promise<AmazonPick[]>;
-  publish?: (draft: BlogDraft) => Promise<{ id: string }>;
+  publish?: (draft: BlogDraft, now: Date) => Promise<{ id: string }>;
 }): Promise<RunResult> {
   const shared = {
     dryRun: input.dryRun,
@@ -176,7 +176,7 @@ async function publishAmazonFallback(input: {
   }
 
   try {
-    const created = await input.publish(draft);
+    const created = await input.publish(draft, input.now);
     return {
       posted: true,
       ...shared,
@@ -360,7 +360,7 @@ export async function runWeeklyCampingGearPost(
   }
 
   try {
-    const created = await options.publish(draft);
+    const created = await options.publish(draft, now);
     return {
       posted: true,
       dryRun: false,

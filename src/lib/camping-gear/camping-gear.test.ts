@@ -596,8 +596,10 @@ test("該当する新商品があれば5件まで公開する", async () => {
       return "<html></html>";
     },
     loadPostedUrls: async () => new Set<string>(),
-    publish: async (draft) => {
+    publish: async (draft, postedAt) => {
       published += 1;
+      assert.equal(postedAt.toISOString(), now.toISOString());
+      assert.equal(weeklyEyecatchTitle(postedAt), "今週のキャンプギア　9月29日");
       assert.match(draft.content, /example.com\/products\/shelter/);
       assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
       assert.match(
