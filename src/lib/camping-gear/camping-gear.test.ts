@@ -10,6 +10,14 @@ import {
 import { buildAmazonBestsellersPost, buildGearPost } from "./article";
 import { extractReleaseDate, jstDate, parseFlexibleDate } from "./dates";
 import { qualifyProduct } from "./filter";
+import {
+  extractMediaUrls,
+  listMicrocmsMediaUrls,
+  mediaUrlMatchesFilename,
+  readWeeklyEyecatch,
+  resolveWeeklyEyecatchUrl,
+  WEEKLY_EYECATCH_FILENAME,
+} from "./eyecatch";
 import { buildCampingGearPayload } from "./publish";
 import { pickFeaturedImage } from "./images";
 import {
@@ -299,15 +307,100 @@ test("公式画像はmicroCMSへ置き、失敗した画像はキャプション
   );
 });
 
-test("週次投稿はキャンプカテゴリーのIDを付けて保存する", () => {
+test("週次投稿はキャンプカテゴリーとアイキャッチを付けて保存する", () => {
+  const eyecatch =
+    "https://images.microcms-assets.io/assets/service/yurutto-weekly-eyecatch.jpg";
   const payload = buildCampingGearPayload(
     { title: "今週のギア", content: "<p>本文</p>" },
     "t39sasn8v",
+    eyecatch,
   );
 
   assert.equal(payload.category, "t39sasn8v");
   assert.equal(payload.title, "今週のギア");
+  assert.equal(payload.eyecatch, eyecatch);
   assert.match(payload.content, /本文/);
+});
+
+test("週次アイキャッチは同名のメディアを再利用し、無ければアップロードする", async () => {
+  const hosted =
+    "https://images.microcms-assets.io/assets/service/yurutto-weekly-eyecatch.jpg";
+  const file = {
+    bytes: new Uint8Array([1]),
+    mime: "image/jpeg",
+    filename: WEEKLY_EYECATCH_FILENAME,
+  };
+
+  assert.equal(mediaUrlMatchesFilename(hosted, WEEKLY_EYECATCH_FILENAME), true);
+  assert.equal(
+    mediaUrlMatchesFilename(
+      "https://images.microcms-assets.io/assets/service/other.jpg",
+      WEEKLY_EYECATCH_FILENAME,
+    ),
+    false,
+  );
+  assert.deepEqual(
+    extractMediaUrls({
+      media: [{ url: hosted }],
+      contents: [{ url: "https://images.microcms-assets.io/assets/service/other.jpg" }],
+    }),
+    [hosted, "https://images.microcms-assets.io/assets/service/other.jpg"],
+  );
+
+  const reused = await resolveWeeklyEyecatchUrl({
+    read: () => file,
+    listUrls: async () => [
+      "https://example.com/yurutto-weekly-eyecatch.jpg",
+      hosted,
+    ],
+    upload: async () => {
+      throw new Error("アップロードしない");
+    },
+  });
+  assert.equal(reused, hosted);
+
+  let uploaded = "";
+  const created = await resolveWeeklyEyecatchUrl({
+    read: () => file,
+    listUrls: async () => {
+      throw new Error("一覧に失敗");
+    },
+    upload: async (image) => {
+      uploaded = image.filename;
+      return hosted;
+    },
+  });
+  assert.equal(uploaded, WEEKLY_EYECATCH_FILENAME);
+  assert.equal(created, hosted);
+
+  await assert.rejects(
+    () =>
+      resolveWeeklyEyecatchUrl({
+        read: () => file,
+        listUrls: async () => [],
+        upload: async () => "https://example.com/a.jpg",
+      }),
+    /画像URLを取得できませんでした/,
+  );
+
+  const pages = [
+    {
+      urls: Array.from({ length: 100 }, (_, index) => `https://images.microcms-assets.io/a/${index}.jpg`),
+      totalCount: 101,
+    },
+    { urls: [hosted], totalCount: 101 },
+  ];
+  const listed = await listMicrocmsMediaUrls(async () => pages.shift() ?? { urls: [], totalCount: 0 });
+  assert.equal(listed.at(-1), hosted);
+  assert.equal(new Set(listed).size, listed.length);
+});
+
+test("同梱の週次アイキャッチは5MB未満のJPEG", () => {
+  const file = readWeeklyEyecatch();
+  assert.equal(file.filename, WEEKLY_EYECATCH_FILENAME);
+  assert.equal(file.mime, "image/jpeg");
+  assert.ok(file.bytes.byteLength < 5 * 1024 * 1024);
+  assert.ok(sniffImage(file.bytes, `https://example.com/${file.filename}`));
 });
 
 test("見出しの商品名がある写真を1枚選び、複数商品なら最初の紹介を使う", () => {

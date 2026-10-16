@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  outputFileTracingIncludes: {
+    "/api/cron/new-camping-gear": [
+      "./src/lib/camping-gear/assets/yurutto-weekly-eyecatch.jpg",
+    ],
+  },
 };
 
 export default nextConfig;
