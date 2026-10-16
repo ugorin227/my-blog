@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "tsx scripts/set-oct12-eyecatch.ts && next build",
+    "build": "node scripts/set-oct12-eyecatch.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/lib/seo.test.ts src/lib/camping-gear/camping-gear.test.ts",
