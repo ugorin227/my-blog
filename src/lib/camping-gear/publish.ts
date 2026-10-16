@@ -1,13 +1,19 @@
+import { resolveWeeklyEyecatchUrl } from "@/lib/camping-gear/eyecatch";
 import { hostOfficialImages } from "@/lib/camping-gear/media";
 import type { BlogDraft } from "@/lib/camping-gear/types";
 
 export const CAMPING_GEAR_CATEGORY_NAME = "キャンプ";
 
-export function buildCampingGearPayload(draft: BlogDraft, categoryId: string) {
+export function buildCampingGearPayload(
+  draft: BlogDraft,
+  categoryId: string,
+  eyecatchUrl: string,
+) {
   return {
     title: draft.title,
     content: draft.content,
     category: categoryId,
+    eyecatch: eyecatchUrl,
   };
 }
 
@@ -52,6 +58,7 @@ export class PublishConfigError extends Error {
 
 export async function publishCampingGearPost(
   draft: BlogDraft,
+  now: Date = new Date(),
 ): Promise<{ id: string }> {
   const serviceDomain = process.env.MICROCMS_SERVICE_DOMAIN;
   const apiKey =
@@ -70,6 +77,7 @@ export async function publishCampingGearPost(
   );
 
   const content = await hostOfficialImages(draft.content);
+  const eyecatch = await resolveWeeklyEyecatchUrl({ date: now });
   const response = await fetch(
     `https://${serviceDomain}.microcms.io/api/v1/blogs`,
     {
@@ -79,7 +87,7 @@ export async function publishCampingGearPost(
         "X-MICROCMS-API-KEY": apiKey,
       },
       body: JSON.stringify(
-        buildCampingGearPayload({ ...draft, content }, categoryId),
+        buildCampingGearPayload({ ...draft, content }, categoryId, eyecatch),
       ),
     },
   );
