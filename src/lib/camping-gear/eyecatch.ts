@@ -1,5 +1,6 @@
-import { readFileSync } from "node:fs";
 import path from "node:path";
+import { createCanvas, GlobalFonts, loadImage } from "@napi-rs/canvas";
+import { formatJstMonthDay, jstParts } from "@/lib/camping-gear/dates";
 import {
   isMicrocmsImage,
   MediaPermissionError,
@@ -7,34 +8,110 @@ import {
   type ImageFile,
 } from "@/lib/camping-gear/media";
 
-/** 同名メディアがあれば再アップロードしない。絵を差し替えるときはファイル名も変える。 */
-export const WEEKLY_EYECATCH_FILENAME = "yurutto-weekly-eyecatch.jpg";
+const TITLE_FONT = "EyecatchTitle";
+const BODY_FONT = "EyecatchBody";
+const BRAND = "ゆるっとソロキャン";
+const KICKER = "WEEKLY CAMP GEAR";
 
 const MEDIA_PAGE_LIMIT = 100;
 const MEDIA_PAGE_CAP = 20;
 
-export function weeklyEyecatchPath(): string {
-  return path.join(
-    process.cwd(),
-    "src/lib/camping-gear/assets",
-    WEEKLY_EYECATCH_FILENAME,
-  );
+let fontsReady = false;
+
+function assetPath(...parts: string[]): string {
+  return path.join(process.cwd(), "src/lib/camping-gear/assets", ...parts);
 }
 
-export function readWeeklyEyecatch(): ImageFile {
-  return {
-    bytes: new Uint8Array(readFileSync(weeklyEyecatchPath())),
-    mime: "image/jpeg",
-    filename: WEEKLY_EYECATCH_FILENAME,
-  };
-}
-
-export function mediaUrlMatchesFilename(url: string, filename: string): boolean {
-  try {
-    return decodeURIComponent(new URL(url).pathname).endsWith(`/${filename}`);
-  } catch {
-    return false;
+function ensureFonts(): void {
+  if (fontsReady) {
+    return;
   }
+
+  const title = GlobalFonts.registerFromPath(
+    assetPath("fonts", "NotoSansJP-Bold.ttf"),
+    TITLE_FONT,
+  );
+  const body = GlobalFonts.registerFromPath(
+    assetPath("fonts", "NotoSansJP-Regular.ttf"),
+    BODY_FONT,
+  );
+
+  if (!title || !body) {
+    throw new Error("アイキャッチ用のフォントを読み込めませんでした。");
+  }
+
+  fontsReady = true;
+}
+
+export function weeklyEyecatchTitle(date: Date): string {
+  return `今週のキャンプギア　${formatJstMonthDay(date)}`;
+}
+
+export function weeklyEyecatchFilename(date: Date): string {
+  const { year, month, day } = jstParts(date);
+  const stamp = `${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}`;
+  return `yurutto-weekly-eyecatch-${stamp}.jpg`;
+}
+
+function drawTracked(
+  ctx: ReturnType<ReturnType<typeof createCanvas>["getContext"]>,
+  text: string,
+  x: number,
+  y: number,
+  tracking: number,
+): number {
+  let cursor = x;
+  for (const character of text) {
+    ctx.fillText(character, cursor, y);
+    cursor += ctx.measureText(character).width + tracking;
+  }
+  return cursor;
+}
+
+export async function renderWeeklyEyecatch(date: Date): Promise<ImageFile> {
+  ensureFonts();
+
+  const width = 1920;
+  const height = 1080;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext("2d");
+  const background = await loadImage(assetPath("background.jpg"));
+  ctx.drawImage(background, 0, 0, width, height);
+
+  const veil = ctx.createLinearGradient(0, 0, 1280, 0);
+  veil.addColorStop(0, "rgba(5, 12, 26, 0.42)");
+  veil.addColorStop(1, "rgba(5, 12, 26, 0)");
+  ctx.fillStyle = veil;
+  ctx.fillRect(0, 0, 1280, height);
+
+  ctx.textBaseline = "top";
+  const left = 132;
+  const kickerY = 368;
+  const titleY = 424;
+  const titleSize = 84;
+  const brandSize = 32;
+  const brandY = titleY + titleSize + 28;
+
+  ctx.fillStyle = "#EC7030";
+  ctx.fillRect(92, kickerY + 2, 3, brandY + brandSize - kickerY);
+
+  ctx.font = `20px ${BODY_FONT}`;
+  ctx.fillStyle = "#EC7030";
+  drawTracked(ctx, KICKER, left, kickerY, 7.2);
+
+  ctx.font = `${titleSize}px ${TITLE_FONT}`;
+  ctx.fillStyle = "#F8F5EF";
+  drawTracked(ctx, weeklyEyecatchTitle(date), left, titleY, 1);
+
+  ctx.font = `${brandSize}px ${BODY_FONT}`;
+  ctx.fillStyle = "#CED6E0";
+  drawTracked(ctx, BRAND, left, brandY, 1.2);
+
+  return {
+    bytes: new Uint8Array(canvas.toBuffer("image/jpeg", 93)),
+    mime: "image/jpeg",
+    filename: weeklyEyecatchFilename(date),
+  };
 }
 
 export function extractMediaUrls(payload: unknown): string[] {
@@ -60,6 +137,14 @@ export function extractMediaUrls(payload: unknown): string[] {
   }
 
   return urls;
+}
+
+export function mediaUrlMatchesFilename(url: string, filename: string): boolean {
+  try {
+    return decodeURIComponent(new URL(url).pathname).endsWith(`/${filename}`);
+  } catch {
+    return false;
+  }
 }
 
 type MediaPage = {
@@ -113,7 +198,9 @@ async function fetchMicrocmsMediaPage(offset: number): Promise<MediaPage> {
   return {
     urls: extractMediaUrls(payload),
     totalCount:
-      typeof payload.totalCount === "number" ? payload.totalCount : Number.POSITIVE_INFINITY,
+      typeof payload.totalCount === "number"
+        ? payload.totalCount
+        : Number.POSITIVE_INFINITY,
   };
 }
 
@@ -143,15 +230,17 @@ export async function listMicrocmsMediaUrls(
 
 export async function resolveWeeklyEyecatchUrl(
   options: {
-    read?: () => ImageFile;
+    date?: Date;
+    read?: () => ImageFile | Promise<ImageFile>;
     listUrls?: () => Promise<string[]>;
     upload?: (file: ImageFile) => Promise<string>;
   } = {},
 ): Promise<string> {
-  const read = options.read ?? readWeeklyEyecatch;
+  const date = options.date ?? new Date();
+  const read = options.read ?? (() => renderWeeklyEyecatch(date));
   const listUrls = options.listUrls ?? listMicrocmsMediaUrls;
   const upload = options.upload ?? uploadOfficialImage;
-  const file = read();
+  const file = await read();
 
   try {
     const existing = (await listUrls()).find(

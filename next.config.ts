@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingIncludes: {
     "/api/cron/new-camping-gear": [
-      "./src/lib/camping-gear/assets/yurutto-weekly-eyecatch.jpg",
+      "./src/lib/camping-gear/assets/**/*",
+      "./node_modules/@napi-rs/canvas-linux-x64-gnu/**/*",
     ],
   },
 };

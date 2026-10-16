@@ -14,9 +14,10 @@ import {
   extractMediaUrls,
   listMicrocmsMediaUrls,
   mediaUrlMatchesFilename,
-  readWeeklyEyecatch,
+  renderWeeklyEyecatch,
   resolveWeeklyEyecatchUrl,
-  WEEKLY_EYECATCH_FILENAME,
+  weeklyEyecatchFilename,
+  weeklyEyecatchTitle,
 } from "./eyecatch";
 import { buildCampingGearPayload } from "./publish";
 import { pickFeaturedImage } from "./images";
@@ -322,20 +323,29 @@ test("週次投稿はキャンプカテゴリーとアイキャッチを付け�
   assert.match(payload.content, /本文/);
 });
 
+test("週次アイキャッチのタイトルは今週のキャンプギアと日付", () => {
+  const date = new Date("2026-10-12T00:00:00+09:00");
+  assert.equal(weeklyEyecatchTitle(date), "今週のキャンプギア　10月12日");
+  assert.equal(
+    weeklyEyecatchFilename(date),
+    "yurutto-weekly-eyecatch-20261012.jpg",
+  );
+});
+
 test("週次アイキャッチは同名のメディアを再利用し、無ければアップロードする", async () => {
   const hosted =
-    "https://images.microcms-assets.io/assets/service/yurutto-weekly-eyecatch.jpg";
+    "https://images.microcms-assets.io/assets/service/yurutto-weekly-eyecatch-20261012.jpg";
   const file = {
     bytes: new Uint8Array([1]),
     mime: "image/jpeg",
-    filename: WEEKLY_EYECATCH_FILENAME,
+    filename: weeklyEyecatchFilename(new Date("2026-10-12T00:00:00+09:00")),
   };
 
-  assert.equal(mediaUrlMatchesFilename(hosted, WEEKLY_EYECATCH_FILENAME), true);
+  assert.equal(mediaUrlMatchesFilename(hosted, file.filename), true);
   assert.equal(
     mediaUrlMatchesFilename(
       "https://images.microcms-assets.io/assets/service/other.jpg",
-      WEEKLY_EYECATCH_FILENAME,
+      file.filename,
     ),
     false,
   );
@@ -370,7 +380,7 @@ test("週次アイキャッチは同名のメディアを再利用し、無け�
       return hosted;
     },
   });
-  assert.equal(uploaded, WEEKLY_EYECATCH_FILENAME);
+  assert.equal(uploaded, file.filename);
   assert.equal(created, hosted);
 
   await assert.rejects(
@@ -395,9 +405,10 @@ test("週次アイキャッチは同名のメディアを再利用し、無け�
   assert.equal(new Set(listed).size, listed.length);
 });
 
-test("同梱の週次アイキャッチは5MB未満のJPEG", () => {
-  const file = readWeeklyEyecatch();
-  assert.equal(file.filename, WEEKLY_EYECATCH_FILENAME);
+test("週次アイキャッチは日付入りの5MB未満のJPEGになる", async () => {
+  const date = new Date("2026-10-12T00:00:00+09:00");
+  const file = await renderWeeklyEyecatch(date);
+  assert.equal(file.filename, "yurutto-weekly-eyecatch-20261012.jpg");
   assert.equal(file.mime, "image/jpeg");
   assert.ok(file.bytes.byteLength < 5 * 1024 * 1024);
   assert.ok(sniffImage(file.bytes, `https://example.com/${file.filename}`));

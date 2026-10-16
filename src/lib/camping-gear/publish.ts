@@ -58,6 +58,7 @@ export class PublishConfigError extends Error {
 
 export async function publishCampingGearPost(
   draft: BlogDraft,
+  now: Date = new Date(),
 ): Promise<{ id: string }> {
   const serviceDomain = process.env.MICROCMS_SERVICE_DOMAIN;
   const apiKey =
@@ -76,7 +77,7 @@ export async function publishCampingGearPost(
   );
 
   const content = await hostOfficialImages(draft.content);
-  const eyecatch = await resolveWeeklyEyecatchUrl();
+  const eyecatch = await resolveWeeklyEyecatchUrl({ date: now });
   const response = await fetch(
     `https://${serviceDomain}.microcms.io/api/v1/blogs`,
     {
