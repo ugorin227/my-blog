@@ -16,6 +16,7 @@
     "vercel:deploy": "vercel --prod"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.11",
     "microcms-js-sdk": "^3.4.0",
     "next": "16.4.2",
     "react": "19.2.4",

@@ -10,6 +10,15 @@ import {
 import { buildAmazonBestsellersPost, buildGearPost } from "./article";
 import { extractReleaseDate, jstDate, parseFlexibleDate } from "./dates";
 import { qualifyProduct } from "./filter";
+import {
+  extractMediaUrls,
+  listMicrocmsMediaUrls,
+  mediaUrlMatchesFilename,
+  renderWeeklyEyecatch,
+  resolveWeeklyEyecatchUrl,
+  weeklyEyecatchFilename,
+  weeklyEyecatchTitle,
+} from "./eyecatch";
 import { buildCampingGearPayload } from "./publish";
 import { pickFeaturedImage } from "./images";
 import {
@@ -299,15 +308,110 @@ test("公式画像はmicroCMSへ置き、失敗した画像はキャプション
   );
 });
 
-test("週次投稿はキャンプカテゴリーのIDを付けて保存する", () => {
+test("週次投稿はキャンプカテゴリーとアイキャッチを付けて保存する", () => {
+  const eyecatch =
+    "https://images.microcms-assets.io/assets/service/yurutto-weekly-eyecatch.jpg";
   const payload = buildCampingGearPayload(
     { title: "今週のギア", content: "<p>本文</p>" },
     "t39sasn8v",
+    eyecatch,
   );
 
   assert.equal(payload.category, "t39sasn8v");
   assert.equal(payload.title, "今週のギア");
+  assert.equal(payload.eyecatch, eyecatch);
   assert.match(payload.content, /本文/);
+});
+
+test("週次アイキャッチのタイトルは今週のキャンプギアと日付", () => {
+  const date = new Date("2026-10-12T00:00:00+09:00");
+  assert.equal(weeklyEyecatchTitle(date), "今週のキャンプギア　10月12日");
+  assert.equal(
+    weeklyEyecatchFilename(date),
+    "yurutto-weekly-eyecatch-20261012.jpg",
+  );
+});
+
+test("週次アイキャッチは同名のメディアを再利用し、無ければアップロードする", async () => {
+  const hosted =
+    "https://images.microcms-assets.io/assets/service/yurutto-weekly-eyecatch-20261012.jpg";
+  const file = {
+    bytes: new Uint8Array([1]),
+    mime: "image/jpeg",
+    filename: weeklyEyecatchFilename(new Date("2026-10-12T00:00:00+09:00")),
+  };
+
+  assert.equal(mediaUrlMatchesFilename(hosted, file.filename), true);
+  assert.equal(
+    mediaUrlMatchesFilename(
+      "https://images.microcms-assets.io/assets/service/other.jpg",
+      file.filename,
+    ),
+    false,
+  );
+  assert.deepEqual(
+    extractMediaUrls({
+      media: [{ url: hosted }],
+      contents: [{ url: "https://images.microcms-assets.io/assets/service/other.jpg" }],
+    }),
+    [hosted, "https://images.microcms-assets.io/assets/service/other.jpg"],
+  );
+
+  const reused = await resolveWeeklyEyecatchUrl({
+    read: () => file,
+    listUrls: async () => [
+      "https://example.com/yurutto-weekly-eyecatch.jpg",
+      hosted,
+    ],
+    upload: async () => {
+      throw new Error("アップロードしない");
+    },
+  });
+  assert.equal(reused, hosted);
+
+  let uploaded = "";
+  const created = await resolveWeeklyEyecatchUrl({
+    read: () => file,
+    listUrls: async () => {
+      throw new Error("一覧に失敗");
+    },
+    upload: async (image) => {
+      uploaded = image.filename;
+      return hosted;
+    },
+  });
+  assert.equal(uploaded, file.filename);
+  assert.equal(created, hosted);
+
+  await assert.rejects(
+    () =>
+      resolveWeeklyEyecatchUrl({
+        read: () => file,
+        listUrls: async () => [],
+        upload: async () => "https://example.com/a.jpg",
+      }),
+    /画像URLを取得できませんでした/,
+  );
+
+  const pages = [
+    {
+      urls: Array.from({ length: 100 }, (_, index) => `https://images.microcms-assets.io/a/${index}.jpg`),
+      totalCount: 101,
+    },
+    { urls: [hosted], totalCount: 101 },
+  ];
+  const listed = await listMicrocmsMediaUrls(async () => pages.shift() ?? { urls: [], totalCount: 0 });
+  assert.equal(listed.at(-1), hosted);
+  assert.equal(new Set(listed).size, listed.length);
+});
+
+test("週次アイキャッチは日付入りの5MB未満のJPEGになる", async () => {
+  const date = new Date("2026-10-12T00:00:00+09:00");
+  const file = await renderWeeklyEyecatch(date);
+  assert.equal(file.filename, "yurutto-weekly-eyecatch-20261012.jpg");
+  assert.equal(file.mime, "image/jpeg");
+  assert.ok(file.bytes.byteLength < 5 * 1024 * 1024);
+  assert.ok(sniffImage(file.bytes, `https://example.com/${file.filename}`));
 });
 
 test("見出しの商品名がある写真を1枚選び、複数商品なら最初の紹介を使う", () => {
@@ -492,8 +596,10 @@ test("該当する新商品があれば5件まで公開する", async () => {
       return "<html></html>";
     },
     loadPostedUrls: async () => new Set<string>(),
-    publish: async (draft) => {
+    publish: async (draft, postedAt) => {
       published += 1;
+      assert.equal(postedAt.toISOString(), now.toISOString());
+      assert.equal(weeklyEyecatchTitle(postedAt), "今週のキャンプギア　9月29日");
       assert.match(draft.content, /example.com\/products\/shelter/);
       assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
       assert.match(
