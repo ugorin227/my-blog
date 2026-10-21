@@ -363,7 +363,7 @@ test("公式ページの一覧とRSSから商品候補を読む", () => {
     </channel></rss>
   `);
   assert.equal(rss[0]?.title, "軽量テーブルを新発売");
-  assert.equal(rss[0]?.summary.includes("…"), true);
+  assert.equal(rss[0]?.summary?.includes("…"), true);
 
   const logos = parseLogosNews(
     `<article><a href="https://www.logos.ne.jp/news/1679"><p class="cat">製品情報</p><h2>【9月24日（木）発売】2027モデル</h2><time>2026.09.10</time></a></article>`,
