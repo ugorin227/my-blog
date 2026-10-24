@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
+import { ShareButtons } from "@/components/ShareButtons";
 import { SetupGuide } from "@/components/SetupGuide";
 import { formatDate } from "@/lib/date";
 import {
@@ -11,7 +12,13 @@ import {
   getCategories,
   isMicroCMSConfigured,
 } from "@/lib/microcms";
-import { articleJsonLd, breadcrumbJsonLd, describeHtml, firstContentImage } from "@/lib/seo";
+import {
+  articleJsonLd,
+  breadcrumbJsonLd,
+  describeHtml,
+  firstContentImage,
+  pageUrl,
+} from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
 import { ArticleNavigation } from "@/components/ArticleNavigation";
 import { BlogColumns } from "@/components/BlogColumns";
@@ -165,6 +172,7 @@ export default async function BlogDetailPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: blog.content }}
       />
 
+      <ShareButtons title={blog.title} url={pageUrl(`/blog/${blog.id}`)} />
       <ArticleNavigation adjacent={adjacent} />
     </article>
     </BlogColumns>
