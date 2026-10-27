@@ -145,3 +145,38 @@ body {
   background: transparent;
   padding: 0;
 }
+
+@keyframes category-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes category-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.category-drawer {
+  animation: category-drawer-in 200ms ease-out;
+}
+
+.category-backdrop {
+  animation: category-backdrop-in 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-drawer,
+  .category-backdrop {
+    animation: none;
+  }
+}
