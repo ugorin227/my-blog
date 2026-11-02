@@ -156,8 +156,7 @@ export function buildAmazonBestsellersPost(
       "<h3>レビュー要約</h3>",
       `<p>${escapeHtml(pick.summary)}</p>`,
       "<p>出典: Amazon.co.jp に掲載されたカスタマーレビューの要約</p>",
-      `<p><a href="${escapeHtml(pick.url)}">Amazonで見る</a></p>`,
-      `<p>参照URL: ${escapeHtml(pick.url)}</p>`,
+      `<p><a href="${escapeHtml(pick.url)}" target="_blank" rel="noopener noreferrer sponsored" class="amazon-button">Amazonで見る</a></p>`,
     ]
       .filter(Boolean)
       .join("");

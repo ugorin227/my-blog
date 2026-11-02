@@ -69,6 +69,28 @@ body {
   text-underline-offset: 2px;
 }
 
+.article-body a.amazon-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: #f59e0b;
+  padding: 0.75rem 1.5rem;
+  color: #18181b;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.article-body a.amazon-button:hover {
+  background: #fbbf24;
+}
+
+.article-body a.amazon-button:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
 .article-body ul,
 .article-body ol {
   margin-bottom: 1.25rem;

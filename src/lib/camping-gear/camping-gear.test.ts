@@ -544,6 +544,18 @@ test("新商品がなければAmazon売上TOP5をアフィリエイト付きで�
       published += 1;
       assert.match(draft.title, /Amazon売上TOP5/);
       assert.match(draft.content, /tag=erogemusou-22/);
+      assert.doesNotMatch(draft.content, /参照URL:/);
+      const links = [...draft.content.matchAll(/<a\b[^>]*>/g)];
+      assert.equal(links.length, picks.length);
+      for (const [link] of links) {
+        assert.match(link, /target="_blank"/);
+        assert.match(link, /rel="noopener noreferrer sponsored"/);
+        assert.match(link, /class="amazon-button"/);
+      }
+      assert.equal(
+        (draft.content.match(/>Amazonで見る<\/a>/g) ?? []).length,
+        picks.length,
+      );
       assert.doesNotMatch(
         draft.content,
         /直近2週間の新商品が見つからなかったため|Amazonアソシエイトの紹介リンク|紹介料を受け取ることがあります/,
