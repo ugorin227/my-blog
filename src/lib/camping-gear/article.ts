@@ -165,7 +165,6 @@ export function buildAmazonBestsellersPost(
 
   const content = [
     `<p>${escapeHtml(intro)}</p>`,
-    "<p>直近2週間の新商品が見つからなかったため、Amazon.co.jpのアウトドア用品・売れ筋ランキングを紹介しています。この記事にはAmazonアソシエイトの紹介リンクが含まれます。リンク経由で購入すると、紹介料を受け取ることがあります。</p>",
     ...sections,
     "<p>順位、価格、在庫は変わります。購入前にAmazonの商品ページで確認してください。</p>",
   ].join("");

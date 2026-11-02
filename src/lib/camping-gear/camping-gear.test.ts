@@ -544,7 +544,10 @@ test("新商品がなければAmazon売上TOP5をアフィリエイト付きで�
       published += 1;
       assert.match(draft.title, /Amazon売上TOP5/);
       assert.match(draft.content, /tag=erogemusou-22/);
-      assert.match(draft.content, /Amazonアソシエイト/);
+      assert.doesNotMatch(
+        draft.content,
+        /直近2週間の新商品が見つからなかったため|Amazonアソシエイトの紹介リンク|紹介料を受け取ることがあります/,
+      );
       assert.equal((draft.content.match(/<img /g) ?? []).length, 15);
       assert.match(draft.content, /画像引用: Amazon.co.jp/);
       for (const pick of picks) {
