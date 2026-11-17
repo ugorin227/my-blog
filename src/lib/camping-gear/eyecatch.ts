@@ -47,6 +47,29 @@ export function weeklyEyecatchTitle(date: Date): string {
   return `今週のキャンプギア　${formatJstMonthDay(date)}`;
 }
 
+/**
+ * 週替わりアイキャッチの背景（候補01・02・03・04・07）。
+ * veilAlpha は文字エリアの実測輝度に合わせた左側ベールの濃さ。
+ * 暗い背景は薄く、明るい日中・夕焼けは濃くして白文字の可読性をそろえる。
+ */
+export const WEEKLY_EYECATCH_BACKGROUNDS = [
+  { file: "background-01-starry-mountain-lake.jpg", veilAlpha: 0.38 },
+  { file: "background-02-daytime-forest-mountain.jpg", veilAlpha: 0.66 },
+  { file: "background-03-sunset-lake.jpg", veilAlpha: 0.74 },
+  { file: "background-04-daytime-lake-mountain.jpg", veilAlpha: 0.68 },
+  { file: "background-07-sunset-mountain-lake.jpg", veilAlpha: 0.74 },
+] as const;
+
+/** 日付（JST）の週番号から、その週の背景パターンを決める。 */
+export function weeklyEyecatchPatternIndex(date: Date): number {
+  const { year, month, day } = jstParts(date);
+  const days = Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+  // 月曜始まりの週番号（1970-01-01は木曜なので+3で月曜にそろえる）。
+  const week = Math.floor((days + 3) / 7);
+  const count = WEEKLY_EYECATCH_BACKGROUNDS.length;
+  return ((week % count) + count) % count;
+}
+
 export function weeklyEyecatchFilename(date: Date): string {
   const { year, month, day } = jstParts(date);
   const stamp = `${year}${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}`;
@@ -75,14 +98,25 @@ export async function renderWeeklyEyecatch(date: Date): Promise<ImageFile> {
   const height = 1080;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
-  const background = await loadImage(assetPath("background.jpg"));
+  const pattern = WEEKLY_EYECATCH_BACKGROUNDS[weeklyEyecatchPatternIndex(date)];
+  const background = await loadImage(assetPath(pattern.file));
   ctx.drawImage(background, 0, 0, width, height);
 
+  // 背景ごとに濃さを変えた左ベール＋文字ブロック裏の縦ベールで、
+  // 明るい背景でも白文字のコントラストをそろえる。
   const veil = ctx.createLinearGradient(0, 0, 1280, 0);
-  veil.addColorStop(0, "rgba(5, 12, 26, 0.42)");
+  veil.addColorStop(0, `rgba(5, 12, 26, ${pattern.veilAlpha})`);
   veil.addColorStop(1, "rgba(5, 12, 26, 0)");
   ctx.fillStyle = veil;
   ctx.fillRect(0, 0, 1280, height);
+
+  const band = ctx.createLinearGradient(0, 300, 0, 640);
+  band.addColorStop(0, "rgba(5, 12, 26, 0)");
+  band.addColorStop(0.35, `rgba(5, 12, 26, ${pattern.veilAlpha * 0.45})`);
+  band.addColorStop(0.75, `rgba(5, 12, 26, ${pattern.veilAlpha * 0.45})`);
+  band.addColorStop(1, "rgba(5, 12, 26, 0)");
+  ctx.fillStyle = band;
+  ctx.fillRect(0, 300, 1280, 340);
 
   ctx.textBaseline = "top";
   const left = 132;
@@ -95,6 +129,11 @@ export async function renderWeeklyEyecatch(date: Date): Promise<ImageFile> {
   ctx.fillStyle = "#EC7030";
   ctx.fillRect(92, kickerY + 2, 3, brandY + brandSize - kickerY);
 
+  // ベールをすり抜けた明るさ対策に、文字へ共通の影を付ける。
+  ctx.shadowColor = "rgba(5, 12, 26, 0.85)";
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 2;
+
   ctx.font = `20px ${BODY_FONT}`;
   ctx.fillStyle = "#EC7030";
   drawTracked(ctx, KICKER, left, kickerY, 7.2);
@@ -106,6 +145,10 @@ export async function renderWeeklyEyecatch(date: Date): Promise<ImageFile> {
   ctx.font = `${brandSize}px ${BODY_FONT}`;
   ctx.fillStyle = "#CED6E0";
   drawTracked(ctx, BRAND, left, brandY, 1.2);
+
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
 
   return {
     bytes: new Uint8Array(canvas.toBuffer("image/jpeg", 93)),

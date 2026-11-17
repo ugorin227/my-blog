@@ -17,7 +17,9 @@ import {
   renderWeeklyEyecatch,
   resolveWeeklyEyecatchUrl,
   weeklyEyecatchFilename,
+  weeklyEyecatchPatternIndex,
   weeklyEyecatchTitle,
+  WEEKLY_EYECATCH_BACKGROUNDS,
 } from "./eyecatch";
 import { buildCampingGearPayload } from "./publish";
 import { pickFeaturedImage } from "./images";
@@ -330,6 +332,26 @@ test("週次アイキャッチのタイトルは今週のキャンプギアと�
     weeklyEyecatchFilename(date),
     "yurutto-weekly-eyecatch-20261012.jpg",
   );
+});
+
+test("週次アイキャッチの背景は週替わりで5種を一巡する", () => {
+  assert.equal(WEEKLY_EYECATCH_BACKGROUNDS.length, 5);
+  // 2026-10-12は月曜日。以後の月曜日で指数が1つずつ進み、5週で一巡する。
+  const mondays = [
+    "2026-10-12",
+    "2026-10-19",
+    "2026-10-26",
+    "2026-11-02",
+    "2026-11-09",
+    "2026-11-16",
+  ].map((day) => new Date(`${day}T09:00:00+09:00`));
+  const indexes = mondays.map((date) => weeklyEyecatchPatternIndex(date));
+  assert.equal(new Set(indexes.slice(0, 5)).size, 5);
+  assert.equal(indexes[5], indexes[0]);
+  // 同じ週内（月曜と日曜）では同じパターンになる。
+  const monday = new Date("2026-10-12T09:00:00+09:00");
+  const sunday = new Date("2026-10-18T09:00:00+09:00");
+  assert.equal(weeklyEyecatchPatternIndex(monday), weeklyEyecatchPatternIndex(sunday));
 });
 
 test("週次アイキャッチは同名のメディアを再利用し、無ければアップロードする", async () => {
