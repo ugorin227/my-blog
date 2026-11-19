@@ -1,4 +1,5 @@
 import { resolveWeeklyEyecatchUrl } from "@/lib/camping-gear/eyecatch";
+import { hostHasumiIcons } from "@/lib/camping-gear/hasumi";
 import { hostOfficialImages } from "@/lib/camping-gear/media";
 import type { BlogDraft } from "@/lib/camping-gear/types";
 
@@ -76,7 +77,9 @@ export async function publishCampingGearPost(
     CAMPING_GEAR_CATEGORY_NAME,
   );
 
-  const content = await hostOfficialImages(draft.content);
+  const content = await hostHasumiIcons(
+    await hostOfficialImages(draft.content),
+  );
   const eyecatch = await resolveWeeklyEyecatchUrl({ date: now });
   const response = await fetch(
     `https://${serviceDomain}.microcms.io/api/v1/blogs`,

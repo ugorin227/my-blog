@@ -21,6 +21,12 @@ import {
   weeklyEyecatchTitle,
   WEEKLY_EYECATCH_BACKGROUNDS,
 } from "./eyecatch";
+import {
+  buildHasumiComment,
+  hasumiCommentMarkup,
+  hasumiIconKeyForIndex,
+  hostHasumiIcons,
+} from "./hasumi";
 import { buildCampingGearPayload } from "./publish";
 import { pickFeaturedImage } from "./images";
 import {
@@ -226,7 +232,9 @@ test("記事本文に参照URLを残し、外部テキストはエスケープ�
   assert.match(draft.content, /参照URL: https:\/\/example.com\/gear/);
   assert.doesNotMatch(draft.content, /<script>/);
   assert.match(draft.content, /A &amp; B/);
-  assert.equal((draft.content.match(/<img /g) ?? []).length, 0);
+  // 商品写真は無く、ハスミのアイコンだけが入る。
+  assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
+  assert.match(draft.content, /hasumi-icon-smile\.jpg/);
 
   const withPhoto = buildGearPost(
     [
@@ -236,7 +244,8 @@ test("記事本文に参照URLを残し、外部テキストはエスケープ�
     ],
     now,
   );
-  assert.equal((withPhoto.content.match(/<img /g) ?? []).length, 1);
+  // 公式写真1枚＋ハスミのアイコン1枚。
+  assert.equal((withPhoto.content.match(/<img /g) ?? []).length, 2);
   assert.match(
     withPhoto.content,
     /<figure><img src="https:\/\/example.com\/shelter.jpg" alt="スノーピークのシェルター"><figcaption>画像は公式サイトより<\/figcaption><\/figure>/,
@@ -582,7 +591,7 @@ test("新商品がなければAmazon売上TOP5をアフィリエイト付きで�
         draft.content,
         /直近2週間の新商品が見つからなかったため|Amazonアソシエイトの紹介リンク|紹介料を受け取ることがあります/,
       );
-      assert.equal((draft.content.match(/<img /g) ?? []).length, 15);
+      assert.equal((draft.content.match(/<img /g) ?? []).length, 20);
       assert.match(draft.content, /画像引用: Amazon.co.jp/);
       for (const pick of picks) {
         assert.ok(pick.summary.length >= 200 && pick.summary.length <= 300);
@@ -638,7 +647,8 @@ test("該当する新商品があれば5件まで公開する", async () => {
       assert.equal(postedAt.toISOString(), now.toISOString());
       assert.equal(weeklyEyecatchTitle(postedAt), "今週のキャンプギア　9月29日");
       assert.match(draft.content, /example.com\/products\/shelter/);
-      assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
+      // 公式写真1枚＋ハスミのアイコン1枚。
+      assert.equal((draft.content.match(/<img /g) ?? []).length, 2);
       assert.match(
         draft.content,
         /<figcaption>画像は公式サイトより<\/figcaption>/,
@@ -742,7 +752,8 @@ test("Amazonのランキング、画像、レビュー要約を商品ページ�
     [1, 2, 3, 4, 5].map(amazonPick),
     now,
   );
-  assert.equal((draft.content.match(/<img /g) ?? []).length, 15);
+  // 商品画像15枚＋ハスミのアイコン5枚。
+  assert.equal((draft.content.match(/<img /g) ?? []).length, 20);
 });
 
 test("同じ日のAmazon紹介は二重投稿しない", async () => {
@@ -761,4 +772,128 @@ test("同じ日のAmazon紹介は二重投稿しない", async () => {
   });
   assert.equal(result.reason, "already_posted");
   assert.equal(published, 0);
+});
+
+test("ハスミのひとことはカテゴリと特徴を拾い、体験は作らない", () => {
+  const tent = buildHasumiComment({
+    title: "ワンタッチテント アルファ",
+    summary: "ワンタッチで設営できてコンパクトに収納できるテントです。",
+    index: 0,
+  });
+  assert.match(tent, /テント|設営/);
+  assert.match(tent, /簡単そう|コンパクト/);
+  assert.ok(tent.length >= 80 && tent.length <= 220);
+
+  // サンシェードを含むテントも車中泊ではなくテントとして拾い、文が途中で切れない。
+  const shadeTent = buildHasumiComment({
+    title: "ワンタッチテント サンシェードフルクローズ",
+    summary: "ワンタッチで設営できてコンパクトに収納できるテントです。",
+    index: 0,
+  });
+  assert.match(shadeTent, /デイキャンプ|サイト/);
+  assert.ok(shadeTent.length >= 100);
+  assert.doesNotMatch(tent, /使ってみたら|使ったところ|実際に使/);
+
+  const lantern = buildHasumiComment({
+    title: "LEDランタン ルーメン",
+    summary: "USB充電式で明るさ調整ができるランタンです。",
+    index: 1,
+  });
+  assert.match(lantern, /明かり|充電/);
+
+  const unknown = buildHasumiComment({
+    title: "謎の新商品",
+    summary: "詳細は近日公開です。",
+    index: 2,
+  });
+  assert.ok(unknown.length >= 80);
+});
+
+test("ハスミのアイコンは笑顔・大笑い・ウインクを順に回す", () => {
+  assert.equal(hasumiIconKeyForIndex(0), "smile");
+  assert.equal(hasumiIconKeyForIndex(1), "laugh");
+  assert.equal(hasumiIconKeyForIndex(2), "wink");
+  assert.equal(hasumiIconKeyForIndex(3), "smile");
+
+  const markup = hasumiCommentMarkup({
+    title: "ローチェア",
+    summary: "軽量で折りたたみできるチェアです。",
+    index: 1,
+  });
+  assert.match(markup, /hasumi-comment/);
+  assert.match(markup, /hasumi-icon-laugh\.jpg/);
+  assert.match(markup, /泊ハスミ/);
+});
+
+test("ギア記事とAmazon記事の両方にハスミのひとことが入る", () => {
+  const gear = buildGearPost(
+    [
+      product({ title: "ワンタッチテント", summary: "設営が簡単なテントです。" }),
+      product({ title: "LEDランタン", summary: "充電式ランタンです。" }),
+    ],
+    now,
+  );
+  assert.equal((gear.content.match(/hasumi-comment__bubble/g) ?? []).length, 2);
+  assert.match(gear.content, /hasumi-icon-smile\.jpg/);
+  assert.match(gear.content, /hasumi-icon-laugh\.jpg/);
+
+  const amazon = buildAmazonBestsellersPost(
+    [1, 2, 3, 4, 5].map(amazonPick),
+    now,
+  );
+  assert.equal((amazon.content.match(/hasumi-comment__bubble/g) ?? []).length, 5);
+});
+
+test("ハスミのアイコンは同名メディアを再利用し、無ければ一度だけ上げる", async () => {
+  const markup = hasumiCommentMarkup({
+    title: "ローチェア",
+    summary: "軽量なチェアです。",
+    index: 0,
+  });
+  const kept = await hostHasumiIcons(markup, {
+    listUrls: async () => [
+      "https://images.microcms-assets.io/assets/service/hasumi-icon-smile.jpg",
+    ],
+    upload: async () => {
+      throw new Error("再利用できる週はアップロードしない");
+    },
+  });
+  assert.match(
+    kept,
+    /src="https:\/\/images\.microcms-assets\.io\/assets\/service\/hasumi-icon-smile\.jpg"/,
+  );
+
+  let uploads = 0;
+  const doubled = `${markup}${markup}`;
+  const hosted = await hostHasumiIcons(doubled, {
+    read: async (filename) => ({
+      bytes: new Uint8Array([1, 2, 3]),
+      mime: "image/jpeg",
+      filename,
+    }),
+    listUrls: async () => [],
+    upload: async (file) => {
+      uploads += 1;
+      return `https://images.microcms-assets.io/assets/service/${file.filename}`;
+    },
+  });
+  assert.equal(uploads, 1);
+  assert.equal(
+    (hosted.match(/images\.microcms-assets\.io/g) ?? []).length,
+    2,
+  );
+
+  const dropped = await hostHasumiIcons(markup, {
+    read: async (filename) => ({
+      bytes: new Uint8Array([1]),
+      mime: "image/jpeg",
+      filename,
+    }),
+    listUrls: async () => [],
+    upload: async () => {
+      throw new Error("ネットワーク失敗");
+    },
+  });
+  assert.doesNotMatch(dropped, /<img class="hasumi-comment__icon"/);
+  assert.match(dropped, /hasumi-comment__bubble/);
 });

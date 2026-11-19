@@ -5,6 +5,7 @@ import {
   GEAR_POST_TITLE_MARK,
 } from "@/lib/camping-gear/types";
 import { officialImageMarkup } from "@/lib/camping-gear/media";
+import { hasumiCommentMarkup } from "@/lib/camping-gear/hasumi";
 import { clipDescription } from "@/lib/seo";
 import { escapeHtml } from "@/lib/camping-gear/text";
 
@@ -79,7 +80,7 @@ export function buildGearPost(products: GearProduct[], now: Date): BlogDraft {
     `${formatJstMonthDay(now)}時点で、直近2週間に発売が見つかったキャンプギアの新商品${products.length}点です。`,
     uniqueLabels(products),
   );
-  const sections = products.map((product) => {
+  const sections = products.map((product, index) => {
     const whenLabel = product.releaseDate ? "発売日" : "発表日";
     const when = formatJstDate(product.releaseDate ?? product.publishedAt);
     const summary = product.summary
@@ -88,6 +89,11 @@ export function buildGearPost(products: GearProduct[], now: Date): BlogDraft {
     const image = product.imageUrl
       ? officialImageMarkup(product.imageUrl, imageAlt(product))
       : "";
+    const hasumi = hasumiCommentMarkup({
+      title: product.title,
+      summary: product.summary,
+      index,
+    });
 
     return [
       `<h2>${escapeHtml(product.title)}</h2>`,
@@ -97,6 +103,7 @@ export function buildGearPost(products: GearProduct[], now: Date): BlogDraft {
       `<li>${whenLabel}: ${when}</li>`,
       "</ul>",
       summary,
+      hasumi,
       `<p><a href="${escapeHtml(product.url)}">公式の発表を見る</a></p>`,
       `<p>参照URL: ${escapeHtml(product.url)}</p>`,
     ]
@@ -133,7 +140,7 @@ export function buildAmazonBestsellersPost(
       })),
     ),
   );
-  const sections = picks.map((pick) => {
+  const sections = picks.map((pick, index) => {
     const images = pick.images
       .slice(0, 3)
       .map(
@@ -156,6 +163,11 @@ export function buildAmazonBestsellersPost(
       "<h3>レビュー要約</h3>",
       `<p>${escapeHtml(pick.summary)}</p>`,
       "<p>出典: Amazon.co.jp に掲載されたカスタマーレビューの要約</p>",
+      hasumiCommentMarkup({
+        title: pick.title,
+        summary: pick.summary,
+        index,
+      }),
       `<p><a href="${escapeHtml(pick.url)}" target="_blank" rel="noopener noreferrer sponsored" class="amazon-button">Amazonで見る</a></p>`,
     ]
       .filter(Boolean)
