@@ -24,11 +24,13 @@ function getClient() {
  * microCMS の読み取りキーでは下書き（publishedAt が無いコンテンツ）も
  * 取得できてしまうため、サイト側では公開済みの記事だけを表示する。
  */
-export function isPublishedBlog(blog: Pick<Blog, "publishedAt">): boolean {
+export function isPublishedBlog(blog: {
+  publishedAt?: string | null;
+}): boolean {
   return Boolean(blog.publishedAt);
 }
 
-export function publishedOnly<T extends Pick<Blog, "publishedAt">>(
+export function publishedOnly<T extends { publishedAt?: string | null }>(
   blogs: T[],
 ): T[] {
   return blogs.filter(isPublishedBlog);
@@ -87,6 +89,11 @@ export async function getBlogDetail(contentId: string): Promise<Blog> {
   }
 
   return blog;
+}
+
+export async function getAllBlogIds(): Promise<string[]> {
+  const blogs = await getAllBlogs();
+  return blogs.map((blog) => blog.id);
 }
 
 export async function getAllBlogs(): Promise<Blog[]> {
