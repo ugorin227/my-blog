@@ -45,16 +45,16 @@ type CategoryListResponse = {
 
 export async function getCategories(): Promise<BlogCategory[]> {
   const client = getClient();
-
   const data = await client.get<CategoryListResponse>({
     endpoint: "categories",
     queries: {
       orders: "publishedAt",
       limit: 100,
+      fields: "id,name",
     },
   });
 
-  return data.contents;
+  return data.contents.filter((category) => category.id && category.name);
 }
 
 export async function getBlogList(
@@ -98,58 +98,47 @@ export async function getAllBlogIds(): Promise<string[]> {
 
 export async function getAllBlogs(): Promise<Blog[]> {
   const client = getClient();
-  const blogs: Blog[] = [];
+  const limit = 100;
   let offset = 0;
+  const blogs: Blog[] = [];
 
-  for (;;) {
+  while (true) {
     const data = await client.get<BlogListResponse>({
       endpoint: "blogs",
       queries: {
         orders: "-publishedAt",
-        limit: 100,
+        limit,
         offset,
       },
     });
 
     blogs.push(...publishedOnly(data.contents));
 
-    if (data.contents.length < 100 || blogs.length >= data.totalCount) {
+    if (offset + data.contents.length >= data.totalCount) {
       break;
     }
 
-    offset += 100;
+    offset += limit;
   }
 
   return blogs;
 }
 
-export async function getAdjacentBlogs(
-  currentBlog: Blog,
-): Promise<AdjacentBlogs> {
-  const allBlogs = await getAllBlogs();
+function toNavItem(blog: Blog): BlogNavItem {
+  return { id: blog.id, title: blog.title };
+}
 
-  const sortedBlogs = allBlogs
-    .filter((blog) => blog.publishedAt)
-    .sort(
-      (a, b) =>
-        new Date(b.publishedAt ?? 0).getTime() -
-        new Date(a.publishedAt ?? 0).getTime(),
-    );
+export async function getAdjacentBlogs(contentId: string): Promise<AdjacentBlogs> {
+  const { contents } = await getBlogList();
+  const index = contents.findIndex((blog) => blog.id === contentId);
 
-  const currentIndex = sortedBlogs.findIndex(
-    (blog) => blog.id === currentBlog.id,
-  );
-
-  const toNavItem = (blog: Blog): BlogNavItem => ({
-    id: blog.id,
-    title: blog.title,
-  });
+  if (index === -1) {
+    return { newer: null, older: null };
+  }
 
   return {
-    prev: currentIndex > 0 ? toNavItem(sortedBlogs[currentIndex - 1]) : null,
-    next:
-      currentIndex >= 0 && currentIndex < sortedBlogs.length - 1
-        ? toNavItem(sortedBlogs[currentIndex + 1])
-        : null,
+    newer: index > 0 ? toNavItem(contents[index - 1]) : null,
+    older:
+      index < contents.length - 1 ? toNavItem(contents[index + 1]) : null,
   };
 }
