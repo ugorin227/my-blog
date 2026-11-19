@@ -132,6 +132,53 @@ body {
   text-align: center;
 }
 
+.article-body .hasumi-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.article-body .hasumi-comment__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0;
+  border-radius: 9999px;
+  flex: none;
+}
+
+.article-body .hasumi-comment__bubble {
+  border-radius: 1rem;
+  background: #f4f4f5;
+  padding: 0.875rem 1rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .article-body .hasumi-comment__bubble {
+    background: #27272a;
+  }
+}
+
+.article-body .hasumi-comment__bubble p {
+  margin-bottom: 0.5rem;
+}
+
+.article-body .hasumi-comment__bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.article-body .hasumi-comment__name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .article-body .hasumi-comment__name {
+    color: #fdba74;
+  }
+}
+
 .article-body blockquote {
   margin: 1.5rem 0;
   padding-left: 1rem;
