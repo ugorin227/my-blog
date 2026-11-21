@@ -254,3 +254,46 @@ body {
     animation: none;
   }
 }
+
+.article-body table {
+  display: block;
+  width: 100%;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.article-body th,
+.article-body td {
+  border: 1px solid #d5ddd2;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.article-body thead th {
+  background: #e9f1e6;
+  font-weight: 700;
+}
+
+.article-body tbody td:first-child {
+  background: #f7f2e7;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .article-body th,
+  .article-body td {
+    border-color: #3f463c;
+  }
+
+  .article-body thead th {
+    background: #263026;
+  }
+
+  .article-body tbody td:first-child {
+    background: #2e2a20;
+  }
+}
