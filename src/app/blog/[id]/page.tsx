@@ -20,6 +20,7 @@ import {
   pageUrl,
 } from "@/lib/seo";
 import { SITE_NAME } from "@/lib/site";
+import { ArticleLightbox } from "@/components/ArticleLightbox";
 import { ArticleNavigation } from "@/components/ArticleNavigation";
 import { BlogColumns } from "@/components/BlogColumns";
 
@@ -171,6 +172,7 @@ export default async function BlogDetailPage({ params }: PageProps) {
         className="article-body mt-10"
         dangerouslySetInnerHTML={{ __html: blog.content }}
       />
+      <ArticleLightbox />
 
       <ShareButtons title={blog.title} url={pageUrl(`/blog/${blog.id}`)} />
       <ArticleNavigation adjacent={adjacent} />
