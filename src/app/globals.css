@@ -124,6 +124,11 @@ body {
   display: block;
   margin: 0 auto;
 }
+/* ハスミのアイコンだけは左揃え（吹き出しの話者アイコンのため） */
+.article-body figure img[src*="hasumi-icon"] {
+  margin-left: 0;
+  margin-right: auto;
+}
 
 .article-body figcaption {
   margin-top: 0.5rem;
