@@ -14,14 +14,16 @@ import { escapeHtml } from "@/lib/camping-gear/text";
 
 /**
  * 泊ハスミ（キャンプ・車中泊初心者）のひとこと。
- * 商品名と公式の説明文からカテゴリと特徴を拾い、テンプレートで組み立てる。
+ * 商品名と公式の説明文を読み、カテゴリの所感に加えて、紹介文の中の
+ * 具体的な売り文句（特徴やスペックの一節）を引用して「良いと思った点・
+ * 欲しくなりそうなポイント」をしゃべる形で組み立てる。
  * 実際に使った体験は作らず、「使ってみたい」「〜そう」という所感に留める。
  */
 
 export const HASUMI_ICONS = [
-  { key: "smile", filename: "hasumi-icon-smile.jpg", label: "笑顔" },
-  { key: "laugh", filename: "hasumi-icon-laugh.jpg", label: "大笑い" },
-  { key: "wink", filename: "hasumi-icon-wink.jpg", label: "ウインク" },
+  { key: "smile", filename: "hasumi-icon-smile.png", label: "笑顔" },
+  { key: "laugh", filename: "hasumi-icon-laugh.png", label: "大笑い" },
+  { key: "wink", filename: "hasumi-icon-wink.png", label: "ウインク" },
 ] as const;
 
 export type HasumiIconKey = (typeof HASUMI_ICONS)[number]["key"];
@@ -293,6 +295,37 @@ export function hasumiIconFilename(key: HasumiIconKey): string {
   return HASUMI_ICONS.find((icon) => icon.key === key)?.filename ?? HASUMI_ICONS[0].filename;
 }
 
+/** 紹介文から、ハスミが反応したくなる具体的な売り文句を1節だけ抜き出す。 */
+function extractHighlight(
+  summary: string,
+  feature: Feature | undefined,
+): string | null {
+  const clauses = summary
+    .replace(/\s+/g, " ")
+    .split(/(?<=[。！？])/)
+    .map((clause) => clause.trim())
+    .filter((clause) => clause.length >= 8);
+  const specPattern =
+    /\d[\d,.]*\s*(?:g|kg|cm|mm|m|L|W|時間|分|段階|色|人用|人|枚|本|個|ルーメン|lm)/;
+  const target =
+    (feature
+      ? clauses.find((clause) =>
+          feature.keywords.some((keyword) => clause.includes(keyword)),
+        )
+      : undefined) ??
+    clauses.find((clause) => specPattern.test(clause)) ??
+    null;
+  if (!target) {
+    return null;
+  }
+  const cleaned = target.replace(/[。！？]$/, "").replace(/(です|ます)$/, "");
+  if (cleaned.length <= 34) {
+    return cleaned;
+  }
+  const cut = cleaned.lastIndexOf("、", 34);
+  return cut >= 16 ? cleaned.slice(0, cut) : `${cleaned.slice(0, 34)}…`;
+}
+
 /** 商品名と説明文から、ハスミのひとこと（所感＋使い方の案）を組み立てる。 */
 export function buildHasumiComment(input: {
   title: string;
@@ -304,17 +337,31 @@ export function buildHasumiComment(input: {
     CATEGORIES.find((candidate) =>
       candidate.keywords.some((keyword) => haystack.includes(keyword)),
     ) ?? GENERIC_CATEGORY;
-  const feature = FEATURES.find((candidate) =>
+  const features = FEATURES.filter((candidate) =>
     candidate.keywords.some((keyword) => haystack.includes(keyword)),
-  );
+  ).slice(0, 2);
   const seed = seedOf(`${input.title}#${input.index}`);
 
-  return [
-    pick(category.impressions, seed),
-    feature?.reaction ?? NO_FEATURE_REACTION,
-    pick(category.usages, seed / 8),
-    pick(CLOSINGS, seed / 32),
-  ].join("");
+  const parts = [pick(category.impressions, seed)];
+  const highlight = extractHighlight(input.summary, features[0]);
+  if (highlight && features[0]) {
+    parts.push(`紹介文の「${highlight}」ってところがいいな。${features[0].reaction}`);
+    if (features[1]) {
+      parts.push(features[1].reaction);
+    }
+  } else if (features[0]) {
+    parts.push(features[0].reaction);
+    if (features[1]) {
+      parts.push(features[1].reaction);
+    }
+  } else if (highlight) {
+    parts.push(`紹介文の「${highlight}」ってところ、気になるなぁ。`);
+  } else {
+    parts.push(NO_FEATURE_REACTION);
+  }
+  parts.push(pick(category.usages, seed / 8), pick(CLOSINGS, seed / 32));
+
+  return parts.join("");
 }
 
 export function hasumiCommentMarkup(input: {
@@ -328,7 +375,7 @@ export function hasumiCommentMarkup(input: {
 
   return [
     `<div class="hasumi-comment">`,
-    `<img class="hasumi-comment__icon" src="${filename}" alt="泊ハスミのアイコン" width="320" height="320">`,
+    `<img class="hasumi-comment__icon" src="${filename}" alt="泊ハスミのアイコン" width="150" height="150">`,
     `<div class="hasumi-comment__bubble">`,
     `<p class="hasumi-comment__name">泊ハスミ｜キャンプ初心者のひとこと</p>`,
     `<p>${escapeHtml(comment)}</p>`,
@@ -337,7 +384,7 @@ export function hasumiCommentMarkup(input: {
 }
 
 const HASUMI_ICON_IMG =
-  /<img class="hasumi-comment__icon" src="(hasumi-icon-(?:smile|laugh|wink)\.jpg)"[^>]*>/g;
+  /<img class="hasumi-comment__icon" src="(hasumi-icon-(?:smile|laugh|wink)\.png)"[^>]*>/g;
 
 function iconAssetPath(filename: string): string {
   return path.join(
@@ -349,7 +396,7 @@ function iconAssetPath(filename: string): string {
 
 async function readIconFile(filename: string): Promise<ImageFile> {
   const bytes = new Uint8Array(await readFile(iconAssetPath(filename)));
-  return { bytes, mime: "image/jpeg", filename };
+  return { bytes, mime: "image/png", filename };
 }
 
 /**

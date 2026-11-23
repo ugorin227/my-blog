@@ -234,7 +234,7 @@ test("記事本文に参照URLを残し、外部テキストはエスケープ�
   assert.match(draft.content, /A &amp; B/);
   // 商品写真は無く、ハスミのアイコンだけが入る。
   assert.equal((draft.content.match(/<img /g) ?? []).length, 1);
-  assert.match(draft.content, /hasumi-icon-smile\.jpg/);
+  assert.match(draft.content, /hasumi-icon-smile\.png/);
 
   const withPhoto = buildGearPost(
     [
@@ -821,7 +821,7 @@ test("ハスミのアイコンは笑顔・大笑い・ウインクを順に回�
     index: 1,
   });
   assert.match(markup, /hasumi-comment/);
-  assert.match(markup, /hasumi-icon-laugh\.jpg/);
+  assert.match(markup, /hasumi-icon-laugh\.png/);
   assert.match(markup, /泊ハスミ/);
 });
 
@@ -834,8 +834,8 @@ test("ギア記事とAmazon記事の両方にハスミのひとことが入る",
     now,
   );
   assert.equal((gear.content.match(/hasumi-comment__bubble/g) ?? []).length, 2);
-  assert.match(gear.content, /hasumi-icon-smile\.jpg/);
-  assert.match(gear.content, /hasumi-icon-laugh\.jpg/);
+  assert.match(gear.content, /hasumi-icon-smile\.png/);
+  assert.match(gear.content, /hasumi-icon-laugh\.png/);
 
   const amazon = buildAmazonBestsellersPost(
     [1, 2, 3, 4, 5].map(amazonPick),
@@ -852,7 +852,7 @@ test("ハスミのアイコンは同名メディアを再利用し、無けれ�
   });
   const kept = await hostHasumiIcons(markup, {
     listUrls: async () => [
-      "https://images.microcms-assets.io/assets/service/hasumi-icon-smile.jpg",
+      "https://images.microcms-assets.io/assets/service/hasumi-icon-smile.png",
     ],
     upload: async () => {
       throw new Error("再利用できる週はアップロードしない");
@@ -860,7 +860,7 @@ test("ハスミのアイコンは同名メディアを再利用し、無けれ�
   });
   assert.match(
     kept,
-    /src="https:\/\/images\.microcms-assets\.io\/assets\/service\/hasumi-icon-smile\.jpg"/,
+    /src="https:\/\/images\.microcms-assets\.io\/assets\/service\/hasumi-icon-smile\.png"/,
   );
 
   let uploads = 0;

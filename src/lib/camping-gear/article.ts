@@ -104,7 +104,7 @@ export function buildGearPost(products: GearProduct[], now: Date): BlogDraft {
       "</ul>",
       summary,
       hasumi,
-      `<p><a href="${escapeHtml(product.url)}">公式の発表を見る</a></p>`,
+      `<p><a href="${escapeHtml(product.url)}" target="_blank" rel="noopener noreferrer">公式の発表を見る</a></p>`,
       `<p>参照URL: ${escapeHtml(product.url)}</p>`,
     ]
       .filter(Boolean)
