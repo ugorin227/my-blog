@@ -18,9 +18,19 @@ export function clipDescription(value: string, max = DESCRIPTION_MAX): string {
   return `${slice.trimEnd()}…`;
 }
 
+const BOILERPLATE_PREFIXES = ["※本記事はプロモーション"];
+
 export function describeHtml(html: string, title: string): string {
-  const firstParagraph = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? "";
-  const summary = clipDescription(stripHtml(firstParagraph));
+  const paragraphs = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].map(
+    (match) => stripHtml(match[1]).replace(/\s+/g, " ").trim(),
+  );
+  const firstParagraph =
+    paragraphs.find(
+      (paragraph) =>
+        paragraph.length > 0 &&
+        !BOILERPLATE_PREFIXES.some((prefix) => paragraph.startsWith(prefix)),
+    ) ?? "";
+  const summary = clipDescription(firstParagraph);
   if (summary.length >= 40) {
     return summary;
   }
