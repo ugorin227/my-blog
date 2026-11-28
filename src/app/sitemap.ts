@@ -2,7 +2,9 @@ import type { MetadataRoute } from "next";
 import { getAllBlogs, getCategories } from "@/lib/microcms";
 import { SITE_URL } from "@/lib/site";
 
-export const revalidate = 60;
+// 記事の公開がサイトマップへ即時反映されるよう、生成はリクエストごとに行う。
+// （ISR の revalidate では新規記事がサイトマップに載らない事象が 2026-11-28 に確認されたため）
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogs = await getAllBlogs();
